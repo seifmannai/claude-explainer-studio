@@ -1,5 +1,5 @@
 # How It Really Works - job runner. Leave this window open while Claude works.
-# Claude drops job files in jobs\ ; only the actions listed below can run. Logs go to logs\.
+# Claude drops job files in jobs\ ; only the actions listed below can run (make = a whole video, selfupdate = new runner from GitHub). Logs go to logs\.
 $Root = $PSScriptRoot; $Studio = "$Root\studio"
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 $Safe = '^[A-Za-z0-9_\-./]+$'
@@ -47,6 +47,16 @@ while ($true) {
           Write-Host "   Blender rendering $($job.name) (in the background)" -ForegroundColor Cyan
           & $bl.FullName -b --factory-startup -P "$Studio\$($job.script)" -- "$Root\out\$($job.name)" *>> $log
         } else { 'rejected: script/name' | Out-File $log -Append } }
+      'make' {
+        # whole video in one job; the steps live in the repo (kit\local\make.ps1), so new steps need no runner update
+        git -C $Studio fetch -q origin *>> $log; git -C $Studio reset -q --hard origin/main *>> $log
+        & "$Studio\kit\local\make.ps1" -Root $Root -JobFile $file.FullName *>> $log }
+      'selfupdate' {
+        # take the newest runner from the repo and restart this window with it
+        git -C $Studio fetch -q origin *>> $log; git -C $Studio reset -q --hard origin/main *>> $log
+        Copy-Item "$Studio\kit\local\runner.ps1" "$Root\runner.ps1" -Force
+        "FINISHED $(Get-Date -f s) (restarting)" | Out-File $log -Append; Move-Item $file.FullName "$Root\jobs\done\" -Force
+        Start-Process "$Root\2-START RUNNER (keep open).bat"; exit }
       default { "rejected: unknown action" | Out-File $log -Append }
     }
     "FINISHED $(Get-Date -f s)" | Out-File $log -Append

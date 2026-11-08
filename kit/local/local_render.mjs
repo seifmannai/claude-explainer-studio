@@ -30,12 +30,12 @@ if (!process.env.CLOUD_TEST && isCpu(gpu)) { console.log('headless used the CPU,
 console.log('GPU:', gpu, '| first frame (load + compile):', ((Date.now() - t0) / 1000).toFixed(1), 's');
 const grab = async (fn) => { const u = await p.evaluate(() => { const c = document.getElementById('c'); if (c.width === 1080) return c.toDataURL('image/jpeg', 0.95); const d = document.createElement('canvas'); d.width = 1080; d.height = 1920; const x = d.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, 1080, 1920); return d.toDataURL('image/jpeg', 0.95); }); fs.writeFileSync(fn + '.tmp', Buffer.from(u.split(',')[1], 'base64')); fs.renameSync(fn + '.tmp', fn); };
 // Live progress page: out\progress.html (opened by "3-VIEW PROGRESS.bat"), refreshes every 2 s.
-const PROG = path.join(path.dirname(out), 'progress.html');
+const PROG = process.env.PROGRESS || path.join(path.dirname(out), 'progress.html');
 const fmt = (s) => s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')} s`;
 function progress(done, total, sec, last, finished) {
   const per = done ? sec / done : 0, left = per * (total - done), pct = total ? Math.round(done / total * 100) : 0;
   const end = new Date(Date.now() + left * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const rel = last ? path.relative(path.dirname(out), last).split(path.sep).join('/') : '';
+  const rel = last ? path.relative(path.dirname(PROG), last).split(path.sep).join('/') : '';
   const html = `<!doctype html><meta charset="utf-8">${finished ? '' : '<meta http-equiv="refresh" content="2">'}<title>${finished ? 'DONE' : pct + '%'} - render</title>
 <body style="margin:0;background:#0b1220;color:#f2f6fa;font:600 18px Segoe UI,sans-serif;display:flex;gap:28px;padding:24px">
 <div style="min-width:340px"><div style="font-size:14px;color:#9fb2c8">HOW IT REALLY WORKS - RENDER</div><h2 style="margin:6px 0 18px">${path.basename(out)}</h2>
@@ -50,6 +50,9 @@ if (mode === 'still') {
   const t1 = Date.now(); await p.evaluate(() => window.renderFrame(12)); const hd = await p.evaluate(() => (window.hdriUsed ? window.hdriUsed() : 'n/a'));
   await p.screenshot({ path: path.join(out, (arg || 'still') + '.png') });
   const msg = `GPU: ${gpu}\nenvironment: ${hd}\nstill (2x supersampled 2160x3840) render seconds: ${((Date.now() - t1) / 1000).toFixed(2)}\n`; fs.writeFileSync(path.join(out, (arg || 'still') + '.txt'), msg); console.log(msg);
+} else if (mode === 'events') {
+  // sound cues for audio_kit.py, from the page itself (no cloud step needed)
+  fs.writeFileSync(path.join(out, 'events.json'), JSON.stringify(await p.evaluate(() => window.events()))); console.log('events ->', out);
 } else if (mode === 'speedtest') {
   const n = Number(arg || 30); const t1 = Date.now();
   for (let i = 0; i < n; i++) { await p.evaluate((f) => window.renderFrame(f), i); await grab(path.join(out, `speed_${i}.jpg`)); }
@@ -58,7 +61,7 @@ if (mode === 'still') {
   const msg = `GPU: ${gpu}\nframes: ${n}\nseconds per frame (render + save): ${per.toFixed(3)}\n65 s Short (1950 frames) estimate: ${(per * 1950 / 60).toFixed(1)} min\n`;
   fs.writeFileSync(path.join(out, 'speedtest.txt'), msg); console.log(msg);
 } else {
-  const [a, z] = arg.split('-').map(Number); const t1 = Date.now(); let n = 0, last = '';
+  const [a, z] = arg === 'auto' ? [0, (await p.evaluate(() => window.frames)) - 1] : arg.split('-').map(Number); const t1 = Date.now(); let n = 0, last = '';
   for (let f = a; f <= z; f++) {
     const fn = path.join(out, `f${String(f).padStart(4, '0')}.jpg`);
     if (!(process.env.RESUME && fs.existsSync(fn))) { await p.evaluate((x) => window.renderFrame(x), f); await grab(fn); n++; last = fn; }

@@ -15,11 +15,13 @@ Copied into skills/vendor/ (open licence, LICENSE kept in each folder):
 | xdis-video-* (8) | github.com/xdis/opus-video-studio | MIT | video-explainer, video-floorplan (Three.js), video-lineart (Blender) |
 | kinetic-reel, painted-animation | github.com/tuzhechen2005/opus-video-skills | MIT | Channel intro / trailer, painted style |
 | viral-hooks | github.com/rediumvex/viral-hooks-skill | MIT | 100 hook formulas: pick 3 hooks per video, lead with the strongest |
+| instagram-agent (13 ig-* skills) | github.com/Jakeschincariol/instagram-agent-skill | MIT | ig-reel (26 hook formulas + hookscore.py), ig-caption, ig-human (strips AI tells from captions), ig-viral (find outliers in a niche), ig-plan, ig-repurpose (one video -> carousel/story/caption). Offline Python, no API key. Use for Reels/Shorts captions and posting plans. |
 | kit/toon-engine/web/toonbase.js | github.com/mromidev/claude-animated-shorts | MIT | Cartoon character pen (cartoon shorts) |
 
 Linked only (no licence or not copyable; lessons written in our own words):
 - github.com/remotion-dev/skills (Remotion official skills)
 - github.com/Tejashmakwana/motionmaxxing (motion quality pass)
+- github.com/worldflowai/everything-claude-code (fork of affaan-m/everything-claude-code; this fork ships no LICENSE file): ideas kept in skills/notes/everything-claude-code.md
 - github.com/heygen-com/hyperframes (HTML-to-video engine; install as a dependency when needed)
 
 Lists to watch for new tools:

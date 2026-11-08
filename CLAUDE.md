@@ -14,6 +14,16 @@ This repo is our studio for a YouTube channel of 3D engineering explainer videos
 4. Sound + mix (measured levels) -> finish.sh -> QA sheet -> deliver.
 5. Save the video record in videos/<slug>/ (script, PLAN.md, sources, qa_sheet.jpg; no large renders).
 
+## Save credits (efficiency rules)
+- PC work = ONE `make` job (kit/local/make.ps1): words -> align -> sound cues -> music/SFX/mix -> render -> encode -> preview + sheet.
+  Job: `{"action":"make","slug":"<slug>","name":"<slug>_v1","voice":"in/<file>.wav","scale":"2"}` (optional "steps":"render,encode").
+- Then wait with ONE background timer (render ~0.14 s/frame at 2x + ~2 min encode) and read only `out/<name>/STATUS.txt` and `out/<name>/sheet.jpg`.
+  QA from `preview.mp4` (small); never stage the full MP4 (the bridge times out above ~100 MB).
+- Never list the PC folder recursively (one listing was 200k characters). List the exact folder, stage exact files.
+- Runner changes: push to the repo, then drop a `selfupdate` job (no user action needed).
+- Cloud preview only for new scenes; reuse kit/ code and the last video's page as the template.
+- Write phase results to files in the repo (script, plan, timings) so a new session or a context reset restarts from files, not chat.
+
 ## End of every session: improve the studio
 - Append dated lessons to LEARNINGS.md: what worked, what broke, render speed, fixes.
 - Fix or extend kit/ code and our skills when a lesson applies generally.

@@ -1,6 +1,13 @@
 # Learnings (newest first)
 
 
+
+## 2026-11-09 - efficiency pass + new skills
+- New PC action `make` runs a whole video in one job (kit/local/make.ps1, lives in the repo so it updates by itself); `selfupdate` swaps in the repo's runner and restarts it. local_render.mjs gained `events` mode (sound cues on the PC) and range `auto` (window.frames).
+- Credit cost of v1 came mostly from step-by-step polling, a 200k-character recursive listing, and rebuilding audio after a container reset. Rules for this are in CLAUDE.md "Save credits".
+- Added instagram-agent (MIT, 13 ig-* skills: hook scorer, caption humanizer, repurposer) to skills/vendor. everything-claude-code fork has no LICENSE: ideas in skills/notes/.
+- User direction for next videos: context first (car -> engine -> cylinder), for every age; longer is fine if clearer (styles/STYLE.md).
+
 ## 2026-11-09 - first full GPU render (combustion engine Short)
 - faster-whisper on Windows crashed in PyAV (`open() got an unexpected keyword argument 'metadata_errors'`): words.py now reads the WAV with numpy and passes the array. large-v3 int8 on the GTX 1060: ~45 s for 62 s of audio.
 - Passing the script as initial_prompt makes Whisper hallucinate filler ("issippi") between sentences; align.py still matched well. Consider dropping the prompt or passing only key terms.

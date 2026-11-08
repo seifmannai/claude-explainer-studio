@@ -8,3 +8,10 @@
 - Voice: Kokoro af_heart, speed 0.94 (never changed). Labels: Inter Bold 34, navy box with a cyan (orange = hot/key) border + leader line. Captions: Inter Display Black 72, 3 words max, active word orange, y=1400. Music: original 96 BPM synth bed (kit/explainer3d/tools/audio_kit.py), -13 dB under the voice; SFX -10 dB.
 
 Reference screenshots go in styles/reference/.
+
+## Storytelling: context first (user rule, 2026-11-09)
+- Explain so a 5, 10, 20 or 60 year old can follow and enjoy it.
+- Start from something everyone knows, then zoom in step by step. Example (engine): a car driving down a road -> what makes it move -> open the hood -> the engine -> cut inside one cylinder -> the four strokes.
+- Each zoom answers the question the last shot raised. One new idea per shot; name a part before using it.
+- Everyday comparisons (bike pedals, a syringe, blowing out a candle), not jargon. Numbers as pictures (a tenth of the space, not just "10:1").
+- Length: quality and clarity beat a fixed length. Long videos are fine when needed; Shorts still 61-70 s with hook in 1-3 s and a re-hook every 15-20 s.
