@@ -9,3 +9,4 @@ out/
 *.bin
 models/
 __pycache__/
+assets/hdri/
