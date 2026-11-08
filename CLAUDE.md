@@ -21,5 +21,6 @@ This repo is our studio for a YouTube channel of 3D engineering explainer videos
 - Commit with a clear message and push.
 
 ## Never
+- Never use or propose paid tools, services or subscriptions. Free or open-source only (free tiers of the platforms themselves are fine).
 - Never commit secrets, API keys, personal data, voiceover files or full renders.
 - Never copy another channel's shots, models, graphics or music.

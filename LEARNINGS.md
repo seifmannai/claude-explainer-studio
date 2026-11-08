@@ -1,6 +1,7 @@
 # Learnings (newest first)
 
 ## 2026-11-08 - Channel rebrand
+- User rule: free or open-source tools only. Research: YouTube Studio Analytics + Research tab, Google Trends, TikTok Creative Center. Scheduling: YouTube Studio, TikTok web scheduler, Meta Business Suite (IG + FB). Uploads/metadata: the desktop app browser, with user approval before Publish.
 - Channel renamed to How It Really Works; logo and banner in brand/ (SVG source in brand.html, rendered with Playwright). Banner text must stay inside the 1546x423 centre safe area (checked by pixel scan).
 - Shorts rule from the user: 61-70 s (target 65 s) so TikTok monetises; one vertical cut for YouTube Shorts, Reels, Facebook, TikTok. Hook in the first 1-3 s, re-hook every 15-20 s.
 - YouTube pages render blank in a hidden desktop-browser pane; read channel data from ytInitialData via fetch instead.
