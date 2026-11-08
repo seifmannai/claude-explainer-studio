@@ -4,6 +4,8 @@
 - User PC: Windows 11, i7-7700HQ, 16 GB RAM (often ~87% used), GTX 1060 laptop GPU, NVMe SSD C:. Work folder: C:\Users\kei\Documents\Youtube channel\HowItReallyWorks.
 - No device shell in this session: files are written with device_commit_files; kit/local/runner.ps1 executes an allowlist of job files (pull, npm, three, speedtest, render, encode). setup.ps1 installs Git/Node/Python/FFmpeg via winget, clones the repo, forces Edge onto the NVIDIA GPU and runs a speed test.
 - Rendering on the PC uses Microsoft Edge through playwright-core (no Chromium download), headed window, ANGLE d3d11.
+- Speed test 2026-11-08: GTX 1060 via ANGLE D3D11 = 0.051 s/frame (render + JPEG save) for the engine scene vs ~3.4 s/frame on the cloud CPU (about 60x faster). A 65 s Short (1950 frames) renders in ~2 min. setup.log is UTF-16: decode before reading.
+- canvas.toDataURL captures only the WebGL canvas; HTML overlays (hook, labels, captions) must be drawn into a canvas or captured with page screenshots when rendering videos.
 
 ## 2026-11-08 - Combustion engine style frame
 - Applied threejs-lighting/materials/postprocessing: three r170 (scene.environmentIntensity, GTAOPass), MeshPhysicalMaterial with real metalness + noise roughness/bump maps, MSAA composer target, three-point light + cyan rim. Poly Haven HDRIs are blocked from the cloud workspace, so the environment is a procedural "photo studio" scene (softbox planes) via PMREM.fromScene.
