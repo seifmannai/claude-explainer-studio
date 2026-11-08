@@ -1,5 +1,13 @@
 # Learnings (newest first)
 
+
+## 2026-11-09 - first full GPU render (combustion engine Short)
+- faster-whisper on Windows crashed in PyAV (`open() got an unexpected keyword argument 'metadata_errors'`): words.py now reads the WAV with numpy and passes the array. large-v3 int8 on the GTX 1060: ~45 s for 62 s of audio.
+- Passing the script as initial_prompt makes Whisper hallucinate filler ("issippi") between sentences; align.py still matched well. Consider dropping the prompt or passing only key terms.
+- Full Short at SCALE 2: 1876 frames in 260 s (0.139 s/frame). Encode (crf 17 veryfast) took ~90 s and gave 311 MB / ~37 Mbit/s because of film grain.
+- The device bridge times out staging files that large: QA from sampled frames (every 125th) and leave the MP4 on the PC. Wait for the encode log's last line before staging the MP4 (the file exists while it is still being written).
+- Cloud container resets lose gitignored audio: rebuild with audio_kit.py + mix.py (deterministic) from the voice file kept in hirw/in.
+
 ## 2026-11-08 - Local GPU setup (user's PC)
 - User PC: Windows 11, i7-7700HQ, 16 GB RAM (often ~87% used), GTX 1060 laptop GPU, NVMe SSD C:. Work folder: C:\Users\kei\Documents\Youtube channel\HowItReallyWorks.
 - No device shell in this session: files are written with device_commit_files; kit/local/runner.ps1 executes an allowlist of job files (pull, npm, three, speedtest, render, encode). setup.ps1 installs Git/Node/Python/FFmpeg via winget, clones the repo, forces Edge onto the NVIDIA GPU and runs a speed test.
