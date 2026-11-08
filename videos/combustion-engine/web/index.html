@@ -1,0 +1,159 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+<style>
+html,body{margin:0;background:#070d18;overflow:hidden}
+#wrap{position:relative;width:1080px;height:1920px;font-family:Inter,'Inter Display',sans-serif}
+canvas{display:block}
+.hook{position:absolute;left:70px;right:70px;top:170px;text-align:center;color:#f2f6fa;font-family:'Inter Display',Inter;font-weight:900;font-size:78px;line-height:1.05;letter-spacing:-1px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
+.hook b{color:#3fe0e8}
+.hook em{font-style:normal;color:#ffb547}
+.lab{position:absolute;color:#f2f6fa;font-weight:700;font-size:34px;white-space:nowrap;padding:8px 18px;border-radius:12px;background:rgba(11,18,32,.78);border:2px solid #3fe0e8;transform:translate(-50%,-50%)}
+.lab.hot{border-color:#ffb547}
+svg.lines{position:absolute;left:0;top:0;width:1080px;height:1920px;pointer-events:none}
+.cap{position:absolute;left:0;right:0;bottom:250px;text-align:center;font-family:'Inter Display',Inter;font-weight:900;font-size:64px;color:#f2f6fa;text-shadow:0 4px 0 #0b1220,0 0 30px rgba(0,0,0,.8)}
+.cap span{color:#ffb547}
+.brand{position:absolute;right:40px;bottom:60px;display:flex;align-items:center;gap:14px;color:#9fb2c8;font-weight:700;font-size:28px;opacity:.9}
+.brand img{width:64px;height:64px;border-radius:50%}
+.stroke{position:absolute;left:50%;top:455px;transform:translateX(-50%);display:flex;gap:10px}
+.stroke div{padding:10px 22px;border-radius:999px;font-weight:800;font-size:28px;color:#6f86a3;border:2px solid #22344f;background:rgba(11,18,32,.7)}
+.stroke div.on{color:#0b1220;background:#ffb547;border-color:#ffb547}
+</style></head><body>
+<div id="wrap">
+<canvas id="c" width="1080" height="1920"></canvas>
+<svg class="lines" id="lines"></svg>
+<div class="hook">Your engine sets off<br><b>100 explosions</b><br>every <em>second</em></div>
+<div class="stroke"><div>INTAKE</div><div>COMPRESSION</div><div class="on">POWER</div><div>EXHAUST</div></div>
+<div id="labels"></div>
+<div class="cap">The spark lights the fuel… <span>BOOM</span></div>
+<div class="brand"><img src="../../../brand/logo-800.png">How It Really Works</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const W = 1080, H = 1920;
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H, false); renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#0b1220');
+scene.fog = new THREE.Fog('#0b1220', 26, 45);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+camera.position.set(11.4, 4.9, 25.6); camera.lookAt(0, 0.55, 0);
+
+// lights
+const key = new THREE.DirectionalLight('#ffffff', 2.2); key.position.set(6, 9, 8); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6; key.shadow.bias = -0.0004;
+scene.add(key);
+const rim = new THREE.DirectionalLight('#3fe0e8', 1.4); rim.position.set(-7, 4, -6); scene.add(rim);
+scene.add(new THREE.HemisphereLight('#9fc4ff', '#22344f', 0.9));
+
+// floor: blueprint grid
+const grid = new THREE.GridHelper(40, 40, '#1d3354', '#14233a'); grid.position.y = -4.2; scene.add(grid);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshStandardMaterial({ color: '#0e1a2c', roughness: 0.9 }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -4.21; floor.receiveShadow = true; scene.add(floor);
+
+// materials
+const cut = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)]; // removes the front half (z > 0)
+const metal = (c, r = 0.35, m = 0.85, clip = false) => new THREE.MeshStandardMaterial({ color: c, roughness: Math.max(r, 0.32), metalness: m * 0.55, clippingPlanes: clip ? cut : null, side: THREE.FrontSide });
+const section = new THREE.MeshStandardMaterial({ color: '#b8582f', roughness: 0.7, metalness: 0.1, clippingPlanes: cut, side: THREE.BackSide });
+const add = (geo, mat, x = 0, y = 0, z = 0, sectionToo = false) => {
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+  if (sectionToo) { const s = new THREE.Mesh(geo, section); s.position.copy(m.position); scene.add(s); }
+  return m;
+};
+
+// engine block (cutaway): thick-walled cylinder made from a lathe profile + outer housing
+const block = metal('#9aa6b4', 0.45, 0.6, true);
+const wall = new THREE.LatheGeometry([new THREE.Vector2(1.0, -1.6), new THREE.Vector2(1.55, -1.6), new THREE.Vector2(1.55, 1.9), new THREE.Vector2(1.0, 1.9), new THREE.Vector2(1.0, -1.6)], 96);
+add(wall, block, 0, 0, 0, true);
+// cooling jacket fins
+for (let i = 0; i < 6; i++) add(new THREE.CylinderGeometry(1.75, 1.75, 0.09, 96, 1, false), block, 0, -1.2 + i * 0.55, 0, true);
+// cylinder head
+const head = new THREE.LatheGeometry([new THREE.Vector2(0, 2.55), new THREE.Vector2(1.7, 2.55), new THREE.Vector2(1.7, 1.9), new THREE.Vector2(1.0, 1.9), new THREE.Vector2(0.75, 2.25), new THREE.Vector2(0, 2.3)], 96);
+add(head, metal('#7c8898', 0.4, 0.7, true), 0, 0, 0, true);
+add(new THREE.BoxGeometry(3.6, 0.5, 2.2), metal('#5d6878', 0.5, 0.6, true), 0, 2.85, 0, true); // valve cover
+// valves
+const valve = (x, col) => { add(new THREE.CylinderGeometry(0.06, 0.06, 1.3, 16), metal('#cfd6df', 0.25, 0.9), x, 2.6, 0); const v = add(new THREE.CylinderGeometry(0.34, 0.12, 0.12, 48), metal(col, 0.3, 0.6), x, 2.0, 0); add(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 24), metal('#cfd6df', 0.3, 0.9), x, 3.15, 0); return v; };
+valve(-0.55, '#4aa8ff'); valve(0.55, '#ff7a3d');
+// spark plug + glowing tip
+add(new THREE.CylinderGeometry(0.11, 0.11, 1.4, 24), metal('#e9edf2', 0.2, 0.2), 0, 2.85, -0.05);
+add(new THREE.CylinderGeometry(0.17, 0.17, 0.35, 6), metal('#cfd6df', 0.3, 0.9), 0, 3.45, -0.05);
+const spark = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(6) }));
+spark.position.set(0, 2.12, -0.05); scene.add(spark);
+
+// combustion: hot glowing gas in the chamber
+const fireMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff9a2e').multiplyScalar(1.6), transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+const fire = new THREE.Mesh(new THREE.CylinderGeometry(0.98, 0.98, 0.75, 64), fireMat); fire.position.y = 1.45; scene.add(fire);
+const core = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffe08a').multiplyScalar(2.2), transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));
+core.scale.set(1.5, 0.6, 1.5); core.position.y = 1.55; scene.add(core);
+const fireLight = new THREE.PointLight('#ff8a2e', 9, 4, 2); fireLight.position.set(0, 1.5, 0.6); scene.add(fireLight);
+
+// piston (at top of power stroke, slightly down)
+const PY = 0.55;
+const pistonMat = metal('#c9d2dc', 0.25, 0.9);
+add(new THREE.CylinderGeometry(0.97, 0.97, 1.1, 64), pistonMat, 0, PY, 0);
+for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.975, 0.025, 8, 64), metal('#3a4350', 0.4, 0.8), 0, PY + 0.38 - i * 0.14, 0).rotation.x = Math.PI / 2;
+// wrist pin + connecting rod (angled) + crank
+const crankC = new THREE.Vector3(0, -2.6, 0), crankR = 0.75, theta = 0.55; // crank angle after TDC
+const pinB = new THREE.Vector3(crankR * Math.sin(theta), crankC.y + crankR * Math.cos(theta), 0.0);
+const wrist = new THREE.Vector3(0, PY - 0.15, 0);
+const rodLen = wrist.distanceTo(pinB), mid = wrist.clone().add(pinB).multiplyScalar(0.5);
+const rod = add(new THREE.BoxGeometry(0.32, rodLen, 0.22), metal('#8f9bab', 0.35, 0.85), mid.x, mid.y, mid.z);
+rod.rotation.z = Math.atan2(-(pinB.x - wrist.x), pinB.y - wrist.y) + Math.PI;
+add(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 24), metal('#d5dce4', 0.25, 0.9), wrist.x, wrist.y, 0).rotation.x = Math.PI / 2;
+add(new THREE.CylinderGeometry(0.3, 0.3, 0.42, 32), metal('#8f9bab', 0.35, 0.85), pinB.x, pinB.y, 0).rotation.x = Math.PI / 2;
+// crankshaft: main journal, webs with counterweight
+const sh = add(new THREE.CylinderGeometry(0.28, 0.28, 3.4, 32), metal('#b3bdc9', 0.3, 0.9), crankC.x, crankC.y, 0); sh.rotation.x = Math.PI / 2;
+for (const z of [-0.35, 0.35]) {
+  const web = new THREE.Shape(); web.absarc(0, 0, 1.15, Math.PI * 0.62, Math.PI * 1.38, false); web.lineTo(0, 0); web.closePath();
+  const wg = new THREE.ExtrudeGeometry(web, { depth: 0.22, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 }); wg.translate(0, 0, -0.11);
+  const m = add(wg, metal('#7d8999', 0.35, 0.85), crankC.x, crankC.y, z); m.rotation.z = -Math.PI / 2 + theta + Math.PI;
+  const arm = add(new THREE.BoxGeometry(0.5, crankR + 0.2, 0.22), metal('#7d8999', 0.35, 0.85), (crankC.x + pinB.x) / 2, (crankC.y + pinB.y) / 2, z); arm.rotation.z = -theta;
+}
+// flywheel hint
+const fw = add(new THREE.CylinderGeometry(1.5, 1.5, 0.25, 96), metal('#5d6878', 0.4, 0.8), 0, crankC.y, -1.9); fw.rotation.x = Math.PI / 2;
+// crankcase (cutaway)
+const cc = new THREE.LatheGeometry([new THREE.Vector2(1.55, -1.6), new THREE.Vector2(2.0, -2.2), new THREE.Vector2(2.0, -3.6), new THREE.Vector2(1.6, -4.0), new THREE.Vector2(1.35, -4.0), new THREE.Vector2(1.75, -3.6), new THREE.Vector2(1.75, -2.25), new THREE.Vector2(1.35, -1.6)], 96);
+add(cc, metal('#6f7b8b', 0.5, 0.6, true), 0, 0, 0, true);
+// intake / exhaust ports
+const port = (x, col) => { const g = new THREE.TorusGeometry(0.9, 0.22, 16, 48, Math.PI / 2); const m = add(g, metal(col, 0.4, 0.5), x, 2.55, 0); m.rotation.z = x < 0 ? Math.PI / 2 : 0; m.position.x += x < 0 ? -0.9 : 0.9; m.position.y -= 0.0; return m; };
+port(-0.55, '#2c6fb8'); port(0.55, '#b8542c');
+
+// post: bloom on emissive only
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.35, 0.4, 0.97));
+composer.addPass(new OutputPass());
+composer.render();
+
+// labels with leader lines
+const proj = (v) => { const p = v.clone().project(camera); return [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H]; };
+const labels = [
+  ['Spark plug', new THREE.Vector3(0, 3.6, -0.05), 'R', true],
+  ['Intake valve', new THREE.Vector3(-0.55, 2.0, -0.2), 'L'],
+  ['Exhaust valve', new THREE.Vector3(0.55, 2.0, -0.2), 'R'],
+  ['Fuel + air: BOOM', new THREE.Vector3(0, 1.5, 0.3), 'L', true],
+  ['Piston', new THREE.Vector3(0.5, PY, 0.6), 'R'],
+  ['Connecting rod', mid.clone().setZ(0.2), 'L'],
+  ['Crankshaft', new THREE.Vector3(0.6, crankC.y, 0.9), 'R'],
+];
+let svg = '', html = '';
+for (const [t, v, side, hot] of labels) {
+  const [px, py] = proj(v); const lx = side === 'L' ? 190 : 890, ly = py;
+  svg += `<line x1="${px}" y1="${py}" x2="${lx}" y2="${ly}" stroke="${hot ? '#ffb547' : '#3fe0e8'}" stroke-width="3"/><circle cx="${px}" cy="${py}" r="9" fill="${hot ? '#ffb547' : '#3fe0e8'}"/>`;
+  html += `<div class="lab${hot ? ' hot' : ''}" style="left:${lx}px;top:${ly}px">${t}</div>`;
+}
+document.getElementById('lines').innerHTML = svg; document.getElementById('labels').innerHTML = html;
+await document.fonts.ready;
+window.done = true;
+</script></body></html>
