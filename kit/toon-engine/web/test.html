@@ -1,0 +1,23 @@
+<!doctype html><html><body style="margin:0;background:#cfe3f2"><canvas id="c" width="1800" height="1200"></canvas>
+<script type="module">
+import { drawCard } from './cast.js';
+import { rating, officer } from './cast.js';
+const c = document.getElementById('c'), g = c.getContext('2d');
+g.fillStyle = '#9fd0ee'; g.fillRect(0,0,1800,1200);
+const tiles = [
+ {kind:'cat', opts:{expr:'grumpy'}}, {kind:'cat', opts:{expr:'squint', look:0}}, {kind:'cat', opts:{expr:'furious', wet:1, t:0.3}},
+ {kind:'cat', opts:{expr:'smug', paw:0.7}}, {kind:'cat', opts:{pose:'curl', expr:'sleep'}}, {kind:'cat', opts:{expr:'shock', look:-1}},
+ {kind:'sailor', outfit: rating(0), opts:{mode:'stand', expr:'nervous', facing:0, seed:2}},
+ {kind:'sailor', outfit: rating(1), opts:{mode:'stand', expr:'shock', wave:0.5, facing:0, seed:5}},
+ {kind:'sailor', outfit: officer(), opts:{mode:'stand', expr:'smile', facing:0, seed:3}},
+ {kind:'bowl', opts:{label:'OSCAR'}}, {kind:'bowl', opts:{label:'SAM', reveal:1}}, {kind:'ring', opts:{label:'ARK ROYAL'}},
+];
+const tmp = document.createElement('canvas');
+tiles.forEach((s, i) => {
+  const [w, h] = s.kind==='sailor'?[300,500]:s.kind==='bowl'?[300,160]:[300,300];
+  tmp.width = w; tmp.height = h; drawCard(tmp.getContext('2d'), w, h, s);
+  const x = (i % 6) * 300, y = Math.floor(i / 6) * 520 + (s.kind==='sailor'?0:100);
+  g.drawImage(tmp, x, y);
+});
+window.done = true;
+</script></body></html>
