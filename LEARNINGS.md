@@ -41,3 +41,4 @@
 - Bug 2: Inter is not installed on Windows -> serif fallback. Fix: kit/fonts (Inter OFL) + inter.css, link it from every page, await document.fonts.load before rendering.
 - Before sending a job to the PC, test the same script in the cloud: CLOUD_TEST=1 node kit/local/local_render.mjs still ... (SwiftShader, ~35 s load + 31 s render at 2x).
 - Result: 2160x3840 still with GTAO + bloom + DOF + HDRI renders in 2.3 s on the GTX 1060. Metals finally read as chrome (HDRI reflections). To fix next: fin edges bloom too white, crank pin hot spot, hatch a bit busy.
+- 1x vs 2x test (same hq.html, GTX 1060): 1x = 0.093 s/frame (65 s Short ~3 min). 1x shows jaggies on thin fin edges and hatch lines even with MSAA 8; 2x supersample + downscale is clean. Plan: 1x for drafts, 2x for the final, deliver 1080x1920 on every platform. The 2.3 s "still" time includes a 4K page screenshot; real 2x frame cost still to measure (frames mode needs a scale option).
