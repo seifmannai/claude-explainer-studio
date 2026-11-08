@@ -10,7 +10,8 @@ const srv = http.createServer((q, r) => { const f = path.join(root, decodeURICom
 await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
 // CLOUD_TEST=1: same script in the cloud workspace (Playwright Chromium + SwiftShader) to catch bugs before sending jobs to the PC.
 // On the PC Edge runs hidden: first headless (no window). If headless falls back to the CPU, reopen it as a window parked off-screen.
-const GPU_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=d3d11'];
+// Fake media devices: Edge never touches the real webcam/mic (her laptop light flashed at each Edge start).
+const GPU_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=d3d11', '--use-fake-device-for-media-stream', '--deny-permission-prompts', '--disable-features=MediaFoundationVideoCapture'];
 const OFFSCREEN = ['--window-position=-32000,-32000', '--window-size=600,1000', '--start-minimized'];
 const SCALE = Math.min(2, Math.max(1, Number(process.env.SCALE || 1))); // 1 = Full HD, 2 = 4K internal; frames are always saved at 1080x1920
 const isCpu = (g) => /swiftshader|basic render|llvmpipe|software/i.test(g);
