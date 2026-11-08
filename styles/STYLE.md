@@ -5,6 +5,6 @@
 - Formats: 1920x1080 main videos (3-6 min); vertical 1080x1920 Shorts/Reels/TikToks of 61-70 s (target ~65 s, NEVER under 61 s: TikTok pays only above 1 min). One vertical cut is posted to YouTube Shorts, Instagram Reels, Facebook Reels and TikTok.
 - Every video opens with a hook in the first 1-3 s (skills/vendor/viral-hooks): a visual pattern-interrupt plus one line under 12 words. Re-hook every ~15-20 s (new question, reveal or number).
 - Look: clean studio-lit 3D, cutaways and exploded views, glowing cyan signal paths, calm camera.
-- Voice: TBD (Kokoro voice name + speed). Labels: Inter SemiBold, white with a cyan leader line. Music: TBD.
+- Voice: Kokoro af_heart, speed 0.94 (never changed). Labels: Inter Bold 34, navy box with a cyan (orange = hot/key) border + leader line. Captions: Inter Display Black 72, 3 words max, active word orange, y=1400. Music: original 96 BPM synth bed (kit/explainer3d/tools/audio_kit.py), -13 dB under the voice; SFX -10 dB.
 
 Reference screenshots go in styles/reference/.
