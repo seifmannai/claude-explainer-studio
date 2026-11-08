@@ -13,6 +13,7 @@ Plan video 2 using every helpful skill (viral-hooks, ig-reel hook scorer, ig-vir
 tech-explainer-3d, explainer-diagrams, lemo-opuscar styles, kinetic-typography...) to maximise reach:
 strong hook, re-hooks, many varied visuals (not one object for 60 s), context-first storytelling (styles/STYLE.md).
 Deliver: 3 topic options with hooks -> user picks -> script -> voice -> page -> one `make` job.
+STATUS 2026-11-09: 3 options sent (videos/_video2-options/TOPICS.md: microwave / 575-tonne plane / touchscreen). Waiting for the pick.
 
 ## Known small fixes for v2 of the engine page
 - Hook text "100 EXPLOSIONS EVERY SECOND" overlaps the engine while fading.

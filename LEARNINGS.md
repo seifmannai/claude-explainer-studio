@@ -1,5 +1,10 @@
 # Learnings (newest first)
 
+## 2026-11-09 - video 2 topic research
+- ig-viral on YouTube works from the desktop browser: open youtube.com, then fetch('/@handle/shorts') in page JS and read overlayMetadata (title + views) from ytInitialData; ~10 channels in 2 calls. Some handles return no data (Lesics, ScienceInsider): try another spelling.
+- hookscore.py rewards a number/name, a stakes word (not, never, wrong, still...), the payoff in the first 3 words and "you". Write the hook naturally first, then fix only what it flags; don't stuff keywords.
+- lemo-opuscar setup.sh clones the library to /root/lemo-opuscar (deps not installed yet).
+
 
 
 ## 2026-11-09 - efficiency pass + new skills
