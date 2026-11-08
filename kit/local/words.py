@@ -32,6 +32,21 @@ def load():
     sys.exit('no usable device')
 
 
+def read_wav(path):
+    import wave
+    import numpy as np
+    with wave.open(path, 'rb') as w:
+        sr, ch, sw, n = w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getnframes()
+        raw = w.readframes(n)
+    dt = {2: np.int16, 4: np.int32}[sw]
+    a = np.frombuffer(raw, dt).astype(np.float32) / float(np.iinfo(dt).max)
+    a = a.reshape(-1, ch).mean(axis=1)
+    if sr != 16000:
+        t_new = np.arange(int(len(a) * 16000 / sr)) / 16000
+        a = np.interp(t_new, np.arange(len(a)) / sr, a).astype(np.float32)
+    return a
+
+
 if __name__ == '__main__':
     if sys.argv[1:] == ['--selftest']:
         import numpy as np
@@ -44,6 +59,7 @@ if __name__ == '__main__':
     audio, out = sys.argv[1], sys.argv[2]
     prompt = open(sys.argv[3], encoding='utf-8').read()[:800] if len(sys.argv) > 3 else None
     m = load()
+    audio = read_wav(audio)  # numpy in, so faster-whisper never calls PyAV (version clash on Windows)
     segs, info = m.transcribe(audio, language='en', word_timestamps=True, initial_prompt=prompt, beam_size=5)
     words = []
     for s in segs:
