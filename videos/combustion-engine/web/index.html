@@ -152,6 +152,8 @@ const gtao = new GTAOPass(scene, camera, W, H); gtao.updateGtaoMaterial({ radius
 composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.35, 0.4, 1.4));
 composer.addPass(new OutputPass());
 composer.render();
+window.renderFrame = () => { composer.render(); return true; };
+window.glInfo = (() => { const gl = renderer.getContext(); const e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; })();
 
 // labels with leader lines
 const proj = (v) => { const p = v.clone().project(camera); return [(p.x + 1) / 2 * W, (1 - p.y) / 2 * H]; };
