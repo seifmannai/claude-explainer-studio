@@ -33,3 +33,11 @@
 - Render speed: CPU SwiftShader 1080x1920 ~2-4 s/frame (1509 frames ~ 85 min). Container restarted mid-render; tmp+rename writes + RESUME=1 lost nothing.
 - Look traps fixed: card halo (ND alpha test must equal colour alpha test, 0.04); subject out of the narrow vertical frame (check horizontal half-width); golden/dusk back-light turned ships into brown silhouettes (put the sun on the camera side, tint the sea blue to compensate); canvas sign text overflowed (measure and shrink); camera crane passed through the carrier island (route via a waypoint).
 - Audio: a sustained drone normalised with the march came out 9 dB louder than the music; check per-section RMS after synthesis. Final limiter 0.85 linear gives ~-1 dBTP after AAC.
+
+## 2026-11-08 — First HQ still on the PC (GTX 1060)
+- Runner: a running PowerShell window keeps the old script. After updating runner.ps1, the user must close and reopen "2-START RUNNER". Jobs for unknown actions are logged "rejected: unknown action".
+- HDRI job (Poly Haven studio_small_09, 2k, CC0) downloads in ~10 s on the PC. Cloud can't reach Poly Haven.
+- Bug 1: renderer.setSize(W,H,false) leaves the canvas without CSS size. At deviceScaleFactor 2 it showed at double size (only a corner visible). Fix: canvas CSS width/height fixed to 1080x1920.
+- Bug 2: Inter is not installed on Windows -> serif fallback. Fix: kit/fonts (Inter OFL) + inter.css, link it from every page, await document.fonts.load before rendering.
+- Before sending a job to the PC, test the same script in the cloud: CLOUD_TEST=1 node kit/local/local_render.mjs still ... (SwiftShader, ~35 s load + 31 s render at 2x).
+- Result: 2160x3840 still with GTAO + bloom + DOF + HDRI renders in 2.3 s on the GTX 1060. Metals finally read as chrome (HDRI reflections). To fix next: fin edges bloom too white, crank pin hot spot, hatch a bit busy.
