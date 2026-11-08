@@ -6,6 +6,7 @@
 - New PC action `make` runs a whole video in one job (kit/local/make.ps1, lives in the repo so it updates by itself); `selfupdate` swaps in the repo's runner and restarts it. local_render.mjs gained `events` mode (sound cues on the PC) and range `auto` (window.frames).
 - Credit cost of v1 came mostly from step-by-step polling, a 200k-character recursive listing, and rebuilding audio after a container reset. Rules for this are in CLAUDE.md "Save credits".
 - Added instagram-agent (MIT, 13 ig-* skills: hook scorer, caption humanizer, repurposer) to skills/vendor. everything-claude-code fork has no LICENSE: ideas in skills/notes/.
+- `make` test on the PC (words + audio): 26 s + 57 s, all on the PC, no cloud audio step. Windows ffmpeg's limiter let true peak reach -0.1 dBTP (cloud gave -0.9): mix.py now re-renders 1 dB quieter whenever the peak is above -1 dBTP.
 - User direction for next videos: context first (car -> engine -> cylinder), for every age; longer is fine if clearer (styles/STYLE.md).
 
 ## 2026-11-09 - first full GPU render (combustion engine Short)

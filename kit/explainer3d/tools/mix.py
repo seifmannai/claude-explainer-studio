@@ -27,6 +27,12 @@ y = (np.clip(out, -1, 1) * 8388607).astype(np.int32); b = np.zeros((n, 3), np.ui
 with wave.open(f'{od}/mix.wav', 'wb') as w: w.setnchannels(1); w.setsampwidth(3); w.setframerate(SR); w.writeframes(b.tobytes())
 I = subprocess.run(['ffmpeg', '-hide_banner', '-i', f'{od}/mix.wav', '-af', 'ebur128', '-f', 'null', '-'], capture_output=True, text=True).stderr
 I = float([l for l in I.splitlines() if l.strip().startswith('I:')][-1].split()[1]); G = -14 - I
-subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{od}/mix.wav', '-af', f'volume={G:.2f}dB,alimiter=limit=0.84:attack=5:release=60:level=false', '-ar', '48000', '-c:a', 'pcm_s24le', f'{od}/final.wav'], check=True)
-chk = subprocess.run(['ffmpeg', '-hide_banner', '-i', f'{od}/final.wav', '-af', 'ebur128=peak=true', '-f', 'null', '-'], capture_output=True, text=True).stderr
+def render(g):
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', f'{od}/mix.wav', '-af', f'volume={g:.2f}dB,alimiter=limit=0.84:attack=5:release=60:level=false', '-ar', '48000', '-c:a', 'pcm_s24le', f'{od}/final.wav'], check=True)
+    c = subprocess.run(['ffmpeg', '-hide_banner', '-i', f'{od}/final.wav', '-af', 'ebur128=peak=true', '-f', 'null', '-'], capture_output=True, text=True).stderr
+    pk = [l for l in c.splitlines() if l.strip().startswith('Peak:')]
+    return c, (float(pk[-1].split()[1]) if pk else -99.0)
+chk, peak = render(G)
+if peak > -1.0:  # ffmpeg builds differ (Windows gave -0.1 dBTP): keep 1 dB of true-peak headroom for the platforms' encoders
+    G -= peak + 1.0; chk, peak = render(G)
 print(f'mix {I:.1f} LUFS -> gain {G:+.2f} dB ->', ' | '.join(l.strip() for l in chk.splitlines() if l.strip().startswith(('I:', 'Peak:')))[-80:])
