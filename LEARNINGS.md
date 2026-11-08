@@ -1,5 +1,10 @@
 # Learnings (newest first)
 
+## 2026-11-08 - Local GPU setup (user's PC)
+- User PC: Windows 11, i7-7700HQ, 16 GB RAM (often ~87% used), GTX 1060 laptop GPU, NVMe SSD C:. Work folder: C:\Users\kei\Documents\Youtube channel\HowItReallyWorks.
+- No device shell in this session: files are written with device_commit_files; kit/local/runner.ps1 executes an allowlist of job files (pull, npm, three, speedtest, render, encode). setup.ps1 installs Git/Node/Python/FFmpeg via winget, clones the repo, forces Edge onto the NVIDIA GPU and runs a speed test.
+- Rendering on the PC uses Microsoft Edge through playwright-core (no Chromium download), headed window, ANGLE d3d11.
+
 ## 2026-11-08 - Combustion engine style frame
 - Applied threejs-lighting/materials/postprocessing: three r170 (scene.environmentIntensity, GTAOPass), MeshPhysicalMaterial with real metalness + noise roughness/bump maps, MSAA composer target, three-point light + cyan rim. Poly Haven HDRIs are blocked from the cloud workspace, so the environment is a procedural "photo studio" scene (softbox planes) via PMREM.fromScene.
 - Lesson: full metalness reflects the environment; a dark studio makes steel black. Use a mid-grey studio background (#2b3646) with large softboxes incl. one behind the camera, environmentIntensity ~1.35. Flat bright end caps blow out under bloom: raise bloom threshold above 1 so only emissive parts glow.
