@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--bg:#0b1220;--bg2:#101b2e;--line:#22344f;--cy:#3fe0e8;--or:#ffb547;--wh:#f2f6fa;--steel:#cdd6e2}
+body{margin:0;background:#000}
+#logo{width:800px;height:800px}
+#banner{width:2560px;height:1440px}
+</style></head><body>
+<svg id="logo" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg"></svg>
+<svg id="banner" viewBox="0 0 2560 1440" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const NS='http://www.w3.org/2000/svg';
+function gearPath(cx,cy,rOut,rIn,teeth){let d='';const n=teeth*4;for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2-Math.PI/2;const r=(i%4<2)?rOut:rIn;const aa=a+((i%4===1||i%4===3)?0:0);d+=(i?'L':'M')+(cx+r*Math.cos(aa)).toFixed(1)+' '+(cy+r*Math.sin(aa)).toFixed(1);}return d+'Z';}
+function icon(cx,cy,s,id){ // gear with x-ray cutaway quadrant
+ const R=300*s,ri=262*s,hub=86*s;
+ return `
+ <defs>
+  <radialGradient id="g${id}" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#eef3f8"/><stop offset=".6" stop-color="#b9c5d3"/><stop offset="1" stop-color="#7d8ca0"/></radialGradient>
+  <clipPath id="solid${id}"><path d="M${cx} ${cy} L${cx} ${cy-400*s} L${cx-400*s} ${cy-400*s} L${cx-400*s} ${cy+400*s} L${cx+400*s} ${cy+400*s} L${cx+400*s} ${cy} Z"/></clipPath>
+  <clipPath id="cut${id}"><path d="M${cx} ${cy} L${cx} ${cy-400*s} L${cx+400*s} ${cy-400*s} L${cx+400*s} ${cy} Z"/></clipPath>
+  <filter id="glow${id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${7*s}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ </defs>
+ <g clip-path="url(#solid${id})">
+  <path d="${gearPath(cx,cy,R,ri,12)}" fill="url(#g${id})" stroke="#0b1220" stroke-width="${10*s}" stroke-linejoin="round"/>
+  <circle cx="${cx}" cy="${cy}" r="${190*s}" fill="none" stroke="#8a99ad" stroke-width="${8*s}"/>
+ </g>
+ <g clip-path="url(#cut${id})">
+  <path d="${gearPath(cx,cy,R,ri,12)}" fill="#0f2238" stroke="#3fe0e8" stroke-width="${5*s}" stroke-dasharray="${14*s} ${10*s}" stroke-linejoin="round"/>
+  <g filter="url(#glow${id})" stroke="#3fe0e8" stroke-width="${9*s}" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M${cx+60*s} ${cy-60*s} L${cx+60*s} ${cy-150*s} L${cx+130*s} ${cy-220*s}"/>
+   <path d="M${cx+110*s} ${cy-40*s} L${cx+190*s} ${cy-40*s} L${cx+230*s} ${cy-80*s}"/>
+   <path d="M${cx+20*s} ${cy-110*s} L${cx+20*s} ${cy-230*s}"/>
+  </g>
+  <circle cx="${cx+130*s}" cy="${cy-220*s}" r="${14*s}" fill="#3fe0e8" filter="url(#glow${id})"/>
+  <circle cx="${cx+230*s}" cy="${cy-80*s}" r="${14*s}" fill="#ffb547" filter="url(#glow${id})"/>
+  <circle cx="${cx+20*s}" cy="${cy-230*s}" r="${12*s}" fill="#3fe0e8" filter="url(#glow${id})"/>
+ </g>
+ <line x1="${cx}" y1="${cy-R-10*s}" x2="${cx}" y2="${cy}" stroke="#3fe0e8" stroke-width="${6*s}"/>
+ <line x1="${cx}" y1="${cy}" x2="${cx+R+10*s}" y2="${cy}" stroke="#3fe0e8" stroke-width="${6*s}"/>
+ <circle cx="${cx}" cy="${cy}" r="${hub}" fill="#0b1220" stroke="#3fe0e8" stroke-width="${8*s}"/>
+ <circle cx="${cx}" cy="${cy}" r="${30*s}" fill="#ffb547"/>`;}
+// LOGO
+document.getElementById('logo').innerHTML=`<rect width="800" height="800" fill="#0b1220"/>
+<circle cx="400" cy="400" r="392" fill="#101b2e"/>
+${[...Array(9)].map((_,i)=>`<line x1="${80+i*80}" y1="0" x2="${80+i*80}" y2="800" stroke="#16253d" stroke-width="2"/><line x1="0" y1="${80+i*80}" x2="800" y2="${80+i*80}" stroke="#16253d" stroke-width="2"/>`).join('')}
+${icon(400,410,1.0,'L')}`;
+// BANNER
+let grid='';for(let x=0;x<=2560;x+=64)grid+=`<line x1="${x}" y1="0" x2="${x}" y2="1440" stroke="#14233a" stroke-width="${x%320?1.5:3}"/>`;for(let y=0;y<=1440;y+=64)grid+=`<line x1="0" y1="${y}" x2="2560" y2="${y}" stroke="#14233a" stroke-width="${y%320?1.5:3}"/>`;
+const chip=(x,y,s)=>{let p=`<rect x="${x-90*s}" y="${y-90*s}" width="${180*s}" height="${180*s}" rx="${14*s}" fill="none" stroke="#3fe0e8" stroke-width="4"/><rect x="${x-50*s}" y="${y-50*s}" width="${100*s}" height="${100*s}" fill="none" stroke="#3fe0e8" stroke-width="3" opacity=".7"/>`;for(let i=0;i<6;i++){const o=-75*s+i*30*s;p+=`<line x1="${x+o}" y1="${y-90*s}" x2="${x+o}" y2="${y-125*s}" stroke="#3fe0e8" stroke-width="4"/><line x1="${x+o}" y1="${y+90*s}" x2="${x+o}" y2="${y+125*s}" stroke="#3fe0e8" stroke-width="4"/><line x1="${x-90*s}" y1="${y+o}" x2="${x-125*s}" y2="${y+o}" stroke="#3fe0e8" stroke-width="4"/><line x1="${x+90*s}" y1="${y+o}" x2="${x+125*s}" y2="${y+o}" stroke="#3fe0e8" stroke-width="4"/>`;}return p;};
+const waves=(x,y)=>[1,2,3,4].map(i=>`<path d="M${x-i*70} ${y-i*40} A${i*80} ${i*80} 0 0 1 ${x+i*70} ${y-i*40}" fill="none" stroke="#3fe0e8" stroke-width="5" stroke-linecap="round" opacity="${1-i*0.15}"/>`).join('')+`<circle cx="${x}" cy="${y}" r="14" fill="#ffb547"/><line x1="${x}" y1="${y}" x2="${x}" y2="${y+170}" stroke="#3fe0e8" stroke-width="5"/>`;
+const piston=(x,y)=>`<rect x="${x-80}" y="${y-110}" width="160" height="120" rx="12" fill="none" stroke="#3fe0e8" stroke-width="4"/>${[0,1,2].map(i=>`<line x1="${x-80}" y1="${y-90+i*18}" x2="${x+80}" y2="${y-90+i*18}" stroke="#3fe0e8" stroke-width="3"/>`).join('')}<circle cx="${x}" cy="${y-30}" r="16" fill="none" stroke="#3fe0e8" stroke-width="4"/><line x1="${x}" y1="${y-30}" x2="${x-40}" y2="${y+170}" stroke="#3fe0e8" stroke-width="10" stroke-linecap="round"/><circle cx="${x-40}" cy="${y+190}" r="34" fill="none" stroke="#3fe0e8" stroke-width="4"/>`;
+document.getElementById('banner').innerHTML=`<defs><radialGradient id="vg" cx="50%" cy="50%" r="65%"><stop offset="0" stop-color="#13223a"/><stop offset="1" stop-color="#070d18"/></radialGradient>
+<linearGradient id="fadeL" x1="0" x2="1"><stop offset="0" stop-color="#3fe0e8" stop-opacity=".55"/><stop offset="1" stop-color="#3fe0e8" stop-opacity="0"/></linearGradient></defs>
+<rect width="2560" height="1440" fill="url(#vg)"/>${grid}
+<g opacity=".28">${chip(300,720,1.3)}${piston(2330,1060)}</g>
+<g opacity=".35">${waves(2280,420)}</g>
+<g transform="translate(0,0)">
+ <svg x="530" y="560" width="320" height="320" viewBox="0 0 800 800">${icon(400,400,1.0,'B')}</svg>
+ <text x="895" y="700" font-family="Inter Display, Inter" font-weight="900" font-size="132" fill="#f2f6fa" letter-spacing="2">HOW IT <tspan fill="#3fe0e8">REALLY</tspan></text>
+ <text x="895" y="830" font-family="Inter Display, Inter" font-weight="900" font-size="132" fill="#f2f6fa" letter-spacing="2" id="works">WORKS</text>
+ <rect id="rule" x="1430" y="770" width="560" height="6" fill="#ffb547"/>
+ <text id="t1" x="1432" y="830" font-family="Inter" font-weight="600" font-size="34" fill="#9fb2c8">Engines · Chips · Wi-Fi · Bluetooth</text>
+ <text id="t2" x="1432" y="878" font-family="Inter" font-weight="500" font-size="30" fill="#6f86a3">explained in 3D</text>
+</g>`;
+const wb=document.getElementById('works').getBBox(); const x0=wb.x+wb.width+44;
+for(const [id,y] of [['rule',748],['t1',808],['t2',856]]){const e=document.getElementById(id); e.setAttribute('x',x0); e.setAttribute('y',y);} document.getElementById('rule').setAttribute('width',520);
+window.done=true;
+</script></body></html>

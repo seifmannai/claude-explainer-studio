@@ -14,6 +14,7 @@ Copied into skills/vendor/ (open licence, LICENSE kept in each folder):
 | lemo-opuscar | github.com/lemomo-ai/lemo-opuscar | MIT | 66 code-made film styles (teardown, circuit-board, glass-product...) |
 | xdis-video-* (8) | github.com/xdis/opus-video-studio | MIT | video-explainer, video-floorplan (Three.js), video-lineart (Blender) |
 | kinetic-reel, painted-animation | github.com/tuzhechen2005/opus-video-skills | MIT | Channel intro / trailer, painted style |
+| viral-hooks | github.com/rediumvex/viral-hooks-skill | MIT | 100 hook formulas: pick 3 hooks per video, lead with the strongest |
 | kit/toon-engine/web/toonbase.js | github.com/mromidev/claude-animated-shorts | MIT | Cartoon character pen (cartoon shorts) |
 
 Linked only (no licence or not copyable; lessons written in our own words):
