@@ -9,13 +9,22 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 const srv = http.createServer((q, r) => { const f = path.join(root, decodeURIComponent(q.url.split('?')[0])); fs.readFile(f, (e, d) => { if (e) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' }); r.end(d); }); });
 await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
 // CLOUD_TEST=1: same script in the cloud workspace (Playwright Chromium + SwiftShader) to catch bugs before sending jobs to the PC.
-const b = process.env.CLOUD_TEST ? await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }) : await chromium.launch({ channel: 'msedge', headless: false, args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=d3d11', '--window-size=600,1000'] });
-const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: mode === 'still' ? 2 : 1 });
-p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+// On the PC Edge runs hidden: first headless (no window). If headless falls back to the CPU, reopen it as a window parked off-screen.
+const GPU_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--use-angle=d3d11'];
+const OFFSCREEN = ['--window-position=-32000,-32000', '--window-size=600,1000', '--start-minimized'];
+const isCpu = (g) => /swiftshader|basic render|llvmpipe|software/i.test(g);
+async function open(how) {
+  const b = how === 'cloud' ? await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+    : await chromium.launch({ channel: 'msedge', headless: how === 'headless', args: how === 'headless' ? GPU_ARGS : [...GPU_ARGS, ...OFFSCREEN] });
+  const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: mode === 'still' ? 2 : 1 });
+  p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
+  await p.goto(`http://127.0.0.1:${srv.address().port}/${page}`);
+  await p.waitForFunction('window.done === true', null, { timeout: 300000 });
+  return { b, p, gpu: await p.evaluate(() => window.glInfo || 'unknown') };
+}
 const t0 = Date.now();
-await p.goto(`http://127.0.0.1:${srv.address().port}/${page}`);
-await p.waitForFunction('window.done === true', null, { timeout: 300000 });
-const gpu = await p.evaluate(() => window.glInfo || 'unknown');
+let { b, p, gpu } = await open(process.env.CLOUD_TEST ? 'cloud' : 'headless');
+if (!process.env.CLOUD_TEST && isCpu(gpu)) { console.log('headless used the CPU, switching to a hidden window'); await b.close(); ({ b, p, gpu } = await open('offscreen')); }
 console.log('GPU:', gpu, '| first frame (load + compile):', ((Date.now() - t0) / 1000).toFixed(1), 's');
 const grab = async (fn) => { const u = await p.evaluate(() => document.getElementById('c').toDataURL('image/jpeg', 0.95)); fs.writeFileSync(fn, Buffer.from(u.split(',')[1], 'base64')); };
 if (mode === 'still') {
