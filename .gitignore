@@ -10,3 +10,4 @@ out/
 models/
 __pycache__/
 assets/hdri/
+kit/explainer3d/tools/node_modules
