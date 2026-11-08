@@ -1,9 +1,10 @@
 <!doctype html><html><head><meta charset="utf-8">
 <script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+<link rel="stylesheet" href="../../../kit/fonts/inter.css">
 <style>
 html,body{margin:0;background:#070d18;overflow:hidden}
 #wrap{position:relative;width:1080px;height:1920px;font-family:Inter,'Inter Display',sans-serif}
-canvas{display:block}
+canvas{display:block;width:1080px!important;height:1920px!important}
 .hook{position:absolute;left:70px;right:70px;top:170px;text-align:center;color:#f2f6fa;font-family:'Inter Display',Inter;font-weight:900;font-size:78px;line-height:1.05;letter-spacing:-1px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
 .hook b{color:#3fe0e8}
 .hook em{font-style:normal;color:#ffb547}
@@ -212,6 +213,6 @@ for (const [t, v, side, hot] of labels) {
   html += `<div class="lab${hot ? ' hot' : ''}" style="left:${lx}px;top:${ly}px">${t}</div>`;
 }
 document.getElementById('lines').innerHTML = svg; document.getElementById('labels').innerHTML = html;
-await document.fonts.ready;
+await Promise.all(['700','800','900'].map(w=>document.fonts.load(w+' 40px Inter'))); await document.fonts.load('900 40px "Inter Display"'); await document.fonts.ready;
 window.done = true;
 </script></body></html>
