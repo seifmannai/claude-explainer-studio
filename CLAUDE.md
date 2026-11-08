@@ -4,7 +4,7 @@ This repo is our studio for a YouTube channel of 3D engineering explainer videos
 
 ## Start of every session
 1. Read LEARNINGS.md (newest first) and styles/STYLE.md.
-2. Pick skills from skills/ours first, then skills/vendor (see VENDOR.md for what each is for).
+2. Pick skills from skills/ours first, then skills/vendor (see VENDOR.md for what each is for). Actually open (Read) every skill you rely on at the start of each video, and list them in videos/<slug>/PLAN.md under "Skills used". Always run viral-hooks for the hook (3 options to the user).
 3. Reuse kit/ code. Do not rebuild an engine that already exists here.
 
 ## Making a video (default workflow)

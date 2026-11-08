@@ -1,5 +1,10 @@
 # Learnings (newest first)
 
+## 2026-11-08 - Combustion engine style frame
+- First style frame made from memory of tech-explainer-3d only; viral-hooks, threejs-* and the Blender four-stroke demo were not opened. Rule added: read the skills you rely on and list them in PLAN.md.
+- Vertical framing: hook text needs the top ~25%, captions the bottom ~20%; keep the subject between y=520 and y=1560 px. Camera at ~28 m with fov 30 fits a 7.6 m-tall cutaway.
+- Metal looked too dark with metalness 0.85 and RoomEnvironment only; metalness ~0.45 + stronger hemisphere fill reads better on CPU renders.
+
 ## 2026-11-08 - Channel rebrand
 - User rule: free or open-source tools only. Research: YouTube Studio Analytics + Research tab, Google Trends, TikTok Creative Center. Scheduling: YouTube Studio, TikTok web scheduler, Meta Business Suite (IG + FB). Uploads/metadata: the desktop app browser, with user approval before Publish.
 - Channel renamed to How It Really Works; logo and banner in brand/ (SVG source in brand.html, rendered with Playwright). Banner text must stay inside the 1546x423 centre safe area (checked by pixel scan).
