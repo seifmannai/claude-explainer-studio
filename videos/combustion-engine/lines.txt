@@ -1,0 +1,24 @@
+One hundred explosions every second.
+That's your car engine.
+
+Inside each cylinder, a metal piston slides up and down.
+Step one, intake.
+The piston drops, the intake valve opens, and it sucks in air and fuel.
+Step two, compression.
+Both valves shut, and the piston squeezes that mixture into about a tenth of the space.
+Step three, power.
+[pause 0.2]
+The spark plug fires.
+The mixture burns at two thousand degrees, and the pressure slams the piston down.
+Step four, exhaust.
+The exhaust valve opens, and the piston pushes the burnt gas out.
+Then it all repeats.
+
+The connecting rod and crankshaft turn that up-and-down punch into spinning, like your legs on bike pedals.
+At six thousand R P M, every piston stops and reverses twice each turn, pulling over two thousand G.
+
+And here's the catch.
+Only about a third of the fuel's energy actually moves your car.
+The rest turns into heat.
+That's why your engine needs a radiator.
+Follow, and I'll show you how it works.

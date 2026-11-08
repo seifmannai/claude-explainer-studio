@@ -1,0 +1,162 @@
+[
+ {
+  "i": 0,
+  "text": "One hundred explosions every second.",
+  "t0": 0.25,
+  "t1": 2.399,
+  "f0": 8,
+  "f1": 72
+ },
+ {
+  "i": 1,
+  "text": "That's your car engine.",
+  "t0": 2.649,
+  "t1": 3.772,
+  "f0": 79,
+  "f1": 113
+ },
+ {
+  "i": 2,
+  "text": "Inside each cylinder, a metal piston slides up and down.",
+  "t0": 4.272,
+  "t1": 7.819,
+  "f0": 128,
+  "f1": 235
+ },
+ {
+  "i": 3,
+  "text": "Step one, intake.",
+  "t0": 8.069,
+  "t1": 9.35,
+  "f0": 242,
+  "f1": 280
+ },
+ {
+  "i": 4,
+  "text": "The piston drops, the intake valve opens, and it sucks in air and fuel.",
+  "t0": 9.6,
+  "t1": 14.096,
+  "f0": 288,
+  "f1": 423
+ },
+ {
+  "i": 5,
+  "text": "Step two, compression.",
+  "t0": 14.346,
+  "t1": 15.654,
+  "f0": 430,
+  "f1": 470
+ },
+ {
+  "i": 6,
+  "text": "Both valves shut, and the piston squeezes that mixture into about a tenth of the space.",
+  "t0": 15.904,
+  "t1": 20.868,
+  "f0": 477,
+  "f1": 626
+ },
+ {
+  "i": 7,
+  "text": "Step three, power.",
+  "t0": 21.118,
+  "t1": 22.164,
+  "f0": 634,
+  "f1": 665
+ },
+ {
+  "i": 8,
+  "text": "The spark plug fires.",
+  "t0": 22.614,
+  "t1": 23.959,
+  "f0": 678,
+  "f1": 719
+ },
+ {
+  "i": 9,
+  "text": "The mixture burns at two thousand degrees, and the pressure slams the piston down.",
+  "t0": 24.209,
+  "t1": 28.895,
+  "f0": 726,
+  "f1": 867
+ },
+ {
+  "i": 10,
+  "text": "Step four, exhaust.",
+  "t0": 29.145,
+  "t1": 30.383,
+  "f0": 874,
+  "f1": 911
+ },
+ {
+  "i": 11,
+  "text": "The exhaust valve opens, and the piston pushes the burnt gas out.",
+  "t0": 30.633,
+  "t1": 34.533,
+  "f0": 919,
+  "f1": 1036
+ },
+ {
+  "i": 12,
+  "text": "Then it all repeats.",
+  "t0": 34.783,
+  "t1": 36.033,
+  "f0": 1043,
+  "f1": 1081
+ },
+ {
+  "i": 13,
+  "text": "The connecting rod and crankshaft turn that up-and-down punch into spinning, like your legs on bike pedals.",
+  "t0": 36.533,
+  "t1": 42.63,
+  "f0": 1096,
+  "f1": 1279
+ },
+ {
+  "i": 14,
+  "text": "At six thousand R P M, every piston stops and reverses twice each turn, pulling over two thousand G.",
+  "t0": 42.88,
+  "t1": 49.817,
+  "f0": 1286,
+  "f1": 1495
+ },
+ {
+  "i": 15,
+  "text": "And here's the catch.",
+  "t0": 50.317,
+  "t1": 51.353,
+  "f0": 1510,
+  "f1": 1541
+ },
+ {
+  "i": 16,
+  "text": "Only about a third of the fuel's energy actually moves your car.",
+  "t0": 51.603,
+  "t1": 55.229,
+  "f0": 1548,
+  "f1": 1657
+ },
+ {
+  "i": 17,
+  "text": "The rest turns into heat.",
+  "t0": 55.479,
+  "t1": 56.783,
+  "f0": 1664,
+  "f1": 1703
+ },
+ {
+  "i": 18,
+  "text": "That's why your engine needs a radiator.",
+  "t0": 57.033,
+  "t1": 59.23,
+  "f0": 1711,
+  "f1": 1777
+ },
+ {
+  "i": 19,
+  "text": "Follow, and I'll show you how it works.",
+  "t0": 59.48,
+  "t1": 61.416,
+  "f0": 1784,
+  "f1": 1842
+ }
+]

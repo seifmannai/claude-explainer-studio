@@ -1,0 +1,337 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- How Your Car Engine Really Works - Short (1080x1920, 30 fps). Story timed to audio/sentences.json + audio/words.json. -->
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+<link rel="stylesheet" href="../../../kit/fonts/inter.css">
+<style>html,body{margin:0;background:#070d18;overflow:hidden} canvas{display:block;width:1080px!important;height:1920px!important}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+import { THREE, W, H, FPS, PAL, clamp, lerp, smooth, easeOut, easeIn, ramp, win, keys, noise1, rcyl, rbox, lathe, makeMaterials, part, createStudio, fontsReady, loadJSON, loadImage } from '../../../kit/explainer3d/core.js';
+import { gpuParticles } from '../../../kit/explainer3d/particles.js';
+import { createUI } from '../../../kit/explainer3d/ui.js';
+
+const st = await createStudio({ bloom: [0.5, 0.5, 1.6] });
+const { scene, camera, renderer } = st;
+const ui = createUI(st);
+const sents = await loadJSON('../audio/sentences.json', []);
+const words = await loadJSON('../audio/words.json', []);
+const logo = await loadImage('../../../brand/logo-800.png');
+const DUR = (sents.length ? sents[sents.length - 1].t1 : 62) + 1.1;
+// time of a word: first token in sentence si whose text starts with `w` (case-insensitive)
+const T = (si, w, fb) => { const x = words.find((q) => q.s === si && q.w.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(w)); return x ? x.t : fb; };
+const S = (i, k = 't0') => (sents[i] ? sents[i][k] : 0);
+
+// ================= engine model =================
+const M = makeMaterials();
+const { metal, section } = M;
+const heatMats = [];   // materials that glow at the end ("the rest turns into heat")
+const hm = (m) => { heatMats.push(m); return m; };
+const eng = new THREE.Group(); scene.add(eng);
+const block = hm(metal('#9aa6b4', 0.45, 0.6, true));
+part(eng, lathe([[1.0, -1.6], [1.55, -1.6], [1.55, 1.9], [1.0, 1.9], [1.0, -1.6]]), block, { section });
+const fin = lathe([[1.5, -0.045], [1.76, -0.045], [1.79, -0.015], [1.79, 0.015], [1.76, 0.045], [1.5, 0.045], [1.5, -0.045]], 128);   // annular cooling fins
+for (let i = 0; i < 6; i++) part(eng, fin, block, { pos: [0, -1.2 + i * 0.55, 0], section });
+const headMat = hm(metal('#7c8898', 0.4, 0.7, true));
+const ROOF = 2.22;
+part(eng, lathe([[0, 2.55], [1.7, 2.55], [1.7, 1.9], [1.0, 1.9], [0.75, 2.22], [0, 2.28]]), headMat, { section });
+part(eng, rbox(3.6, 0.5, 2.2, 0.12), hm(metal('#5d6878', 0.5, 0.6, true)), { pos: [0, 2.85, 0], section });
+const ccMat = hm(metal('#6f7b8b', 0.5, 0.6, true));
+part(eng, lathe([[1.55, -1.6], [2.0, -2.2], [2.0, -3.6], [1.6, -4.0], [1.35, -4.0], [1.75, -3.6], [1.75, -2.25], [1.35, -1.6]]), ccMat, { section });
+
+// intake / exhaust runners: tubes along cubic Bezier paths (cut open, so the flow is visible inside)
+const P = (x, y, z = 0) => new THREE.Vector3(x, y, z);
+const inPath = [P(-3.4, 3.15), P(-1.7, 2.85), P(-0.62, 2.95), P(-0.55, 2.22)];
+const exPath = inPath.map((v) => P(-v.x, v.y));
+const runner = (pts, col) => { const curve = new THREE.CubicBezierCurve3(...pts);
+  const m = part(eng, new THREE.TubeGeometry(curve, 64, 0.24, 32, false), metal(col, 0.4, 0.5, true, { side: THREE.DoubleSide }), {});
+  part(eng, new THREE.TorusGeometry(0.24, 0.05, 12, 48), metal(col, 0.35, 0.6), { pos: pts[0].toArray(), rot: [0, Math.PI / 2, 0] }); return m; };
+runner(inPath, '#2c6fb8'); runner(exPath, '#b8542c');
+
+// valves (stem + head disc facing the chamber)
+const valve = (x, col) => { const g = new THREE.Group(); g.position.set(x, 0, 0); eng.add(g);
+  part(g, new THREE.CylinderGeometry(0.06, 0.06, 1.25, 16), metal('#cfd6df', 0.25, 0.9), { pos: [0, ROOF + 0.62, 0] });
+  part(g, new THREE.CylinderGeometry(0.12, 0.33, 0.1, 48), metal(col, 0.3, 0.6), { pos: [0, ROOF - 0.04, 0] });
+  part(g, new THREE.CylinderGeometry(0.2, 0.2, 0.06, 24), metal('#cfd6df', 0.3, 0.9), { pos: [0, ROOF + 1.2, 0] });
+  // valve spring
+  const coil = new THREE.CatmullRomCurve3(Array.from({ length: 80 }, (_, i) => P(0.16 * Math.cos(i * 0.6), ROOF + 0.55 + i * 0.008, 0.16 * Math.sin(i * 0.6))));
+  part(g, new THREE.TubeGeometry(coil, 200, 0.025, 8, false), metal('#9aa6b4', 0.3, 0.9));
+  return g; };
+const vIn = valve(-0.55, '#4aa8ff'), vEx = valve(0.55, '#ff7a3d');
+// spark plug
+part(eng, new THREE.CylinderGeometry(0.11, 0.11, 1.3, 24), metal('#e9edf2', 0.2, 0.2), { pos: [0, ROOF + 0.6, -0.05] });
+part(eng, new THREE.CylinderGeometry(0.17, 0.17, 0.35, 6), metal('#cfd6df', 0.3, 0.9), { pos: [0, ROOF + 1.3, -0.05] });
+const PLUG = P(0, ROOF - 0.06, -0.05);
+const sparkCore = new THREE.Mesh(new THREE.SphereGeometry(0.08, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(8), transparent: true }));
+sparkCore.position.copy(PLUG); eng.add(sparkCore);
+
+// crank geometry: crank angle th (TDC = 0). 4-stroke cycle = 4*PI of th.
+const C = P(0, -2.6, 0), R = 0.75, L = 2.9, PH = 1.1;
+const wristY = (th) => C.y + R * Math.cos(th) + Math.sqrt(L * L - (R * Math.sin(th)) ** 2);
+const crownY = (th) => wristY(th) + 0.15 + PH / 2;
+const piston = new THREE.Group(); eng.add(piston);
+const pistonMat = metal('#d9dfe6', 0.2, 0.95);
+part(piston, rcyl(0.97, PH, 0.06), pistonMat, { pos: [0, 0.15, 0] });
+for (let i = 0; i < 3; i++) part(piston, new THREE.TorusGeometry(0.975, 0.025, 8, 64), metal('#3a4350', 0.4, 0.8), { pos: [0, 0.15 + 0.38 - i * 0.14, 0], rot: [Math.PI / 2, 0, 0] });
+part(piston, new THREE.CylinderGeometry(0.2, 0.2, 0.5, 24), metal('#d5dce4', 0.25, 0.9), { rot: [Math.PI / 2, 0, 0] });   // wrist pin at group origin
+const rod = new THREE.Group(); eng.add(rod);
+part(rod, rbox(0.32, L - 0.2, 0.22, 0.07), metal('#8f9bab', 0.35, 0.85), { pos: [0, -L / 2, 0] });
+part(rod, rcyl(0.3, 0.42, 0.05, 64), metal('#8f9bab', 0.35, 0.85), { pos: [0, -L, 0], rot: [Math.PI / 2, 0, 0] });
+const crank = new THREE.Group(); crank.position.copy(C); eng.add(crank);
+const shMat = metal('#aab4c0', 0.42, 0.85, false, { anisotropy: 0.5 });
+part(crank, rcyl(0.28, 3.4, 0.05, 64), shMat, { rot: [Math.PI / 2, 0, 0] });
+part(crank, new THREE.CylinderGeometry(0.16, 0.16, 0.75, 32), shMat, { pos: [0, R, 0], rot: [Math.PI / 2, 0, 0] });   // crank pin (at TDC: straight up)
+for (const z of [-0.35, 0.35]) {
+  const web = new THREE.Shape(); web.absarc(0, 0, 1.15, Math.PI * 1.12, Math.PI * 1.88, false); web.lineTo(0, 0); web.closePath();
+  const wg = new THREE.ExtrudeGeometry(web, { depth: 0.22, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 }); wg.translate(0, 0, -0.11);
+  part(crank, wg, metal('#7d8999', 0.35, 0.85), { pos: [0, 0, z] });                                  // counterweight (opposite the pin)
+  part(crank, rbox(0.5, R + 0.25, 0.22, 0.06), metal('#7d8999', 0.35, 0.85), { pos: [0, R / 2, z] });   // arm to the pin
+}
+part(crank, rcyl(1.5, 0.25, 0.05, 128), metal('#5d6878', 0.4, 0.8), { pos: [0, 0, -1.9], rot: [Math.PI / 2, 0, 0] });   // flywheel
+// flywheel timing marks so rotation reads clearly
+for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; part(crank, rbox(0.12, 0.3, 0.05, 0.02), metal(i ? '#cdd6e2' : PAL.orange, 0.3, 0.5), { pos: [1.25 * Math.sin(a), 1.25 * Math.cos(a), -1.76], rot: [0, 0, -a] }); }
+function pose(th) {
+  const wy = wristY(th); piston.position.set(0, wy, 0);
+  crank.rotation.z = -th;
+  const pin = P(C.x + R * Math.sin(th), C.y + R * Math.cos(th), 0);
+  rod.position.set(0, wy, 0); rod.rotation.z = Math.atan2(pin.x, -(pin.y - wy)) ;
+  const cyc = ((th % (4 * Math.PI)) + 4 * Math.PI) % (4 * Math.PI);
+  const lift = (a, b) => (cyc > a && cyc < b ? Math.pow(Math.sin(Math.PI * (cyc - a) / (b - a)), 1.4) * 0.3 : 0);
+  vIn.position.y = -lift(0, Math.PI); vEx.position.y = -lift(3 * Math.PI, 4 * Math.PI);
+  return cyc;
+}
+
+// ================= combustion: flame volume with a flame front spreading from the plug =================
+const fireMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.NormalBlending, side: THREE.DoubleSide,
+  uniforms: { t: { value: 0 }, front: { value: 0 }, power: { value: 0 }, plug: { value: PLUG } },
+  vertexShader: `varying vec3 vP; varying vec3 vW; varying vec3 vN; varying vec3 vV; void main(){ vP = position; vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; vN = normalize(normalMatrix*normal); vec4 mv = viewMatrix*w; vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `uniform float t; uniform float front; uniform float power; uniform vec3 plug; varying vec3 vP; varying vec3 vW; varying vec3 vN; varying vec3 vV;
+    float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,37.719)))*43758.5453); }
+    float n(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z); }
+    float fbm(vec3 p){ float s=0.0, a=0.5; for(int k=0;k<5;k++){ s+=a*n(p); p*=2.03; a*=0.5; } return s; }
+    void main(){ float f = fbm(vW*3.2 + vec3(0.0, -t*2.5, t*0.9));
+      float d = distance(vW, plug) + (f-0.5)*0.35; float edge = 1.0 - smoothstep(front-0.25, front, d);
+      float rim = pow(1.0 - abs(dot(vN, vV)), 1.3); float k = smoothstep(0.3, 0.8, f) * (0.5 + 0.5*rim) * edge * power;
+      float frontGlow = (1.0 - smoothstep(0.0, 0.18, abs(d-front))) * power * step(0.01, front) * 1.6;
+      vec3 col = mix(vec3(1.0,0.2,0.02), vec3(1.0,0.66,0.18), smoothstep(0.55,0.95,f)) * (1.3 + 2.2*k) + vec3(1.0,0.9,0.7)*frontGlow*1.5;
+      gl_FragColor = vec4(col, clamp(k*1.7 + frontGlow*0.6, 0.0, 0.95)); }` });
+// half cylinder (back half, z <= 0) so the cut-open side shows the inside; re-scaled each frame to the chamber
+const fire = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 1, 64, 12, false, Math.PI / 2, Math.PI), fireMat); eng.add(fire);
+const fireLight = new THREE.PointLight('#ff7a1e', 0, 7, 1.6); fireLight.position.set(0, 1.9, 0.7); eng.add(fireLight);
+
+// ================= GPU particles =================
+const bez = `vec3 bez(vec3 a, vec3 b, vec3 c, vec3 d, float u){ float v = 1.0-u; return v*v*v*a + 3.0*v*v*u*b + 3.0*v*u*u*c + u*u*u*d; }
+  vec3 chamber(vec4 s, float crown, float roof){ float r = 0.9*sqrt(s.y); float ph = mix(PI-0.12, 2.0*PI+0.12, s.z); float u = s.w;
+    return vec3(r*cos(ph), mix(crown+0.04, roof-0.04, u), r*sin(ph)); }`;
+const V3 = (v) => v.clone();
+// 1) fuel + air mist flowing in through the intake runner, then trapped and squeezed in the chamber
+const mist = gpuParticles({ count: 9000, size: 0.075, uniforms: { uA: V3(inPath[0]), uB: V3(inPath[1]), uC: V3(inPath[2]), uD: V3(inPath[3]), uT0: 0, uT1: 1, uCrown: 1, uRoof: ROOF, uHeat: 0, uBurn: 0 },
+  motion: `${bez}
+  void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float b = mix(uT0, uT1 - 1.0, s.x); float age = t - b; sz = 0.7 + 0.8*s.w;
+    vec3 tgt = chamber(s, uCrown, uRoof); vec3 j = (hash31(s.x*91.0)-0.5)*0.3;
+    float u1 = clamp(age/0.7, 0.0, 1.0); vec3 pr = bez(uA,uB,uC,uD,u1) + j*(1.0-u1);
+    float u2 = ease((age-0.6)/0.7); p = mix(pr, tgt, u2);
+    float sw = (1.0-u2)*u2*2.0; p.xz += sw*vec2(cos(age*6.0+s.z*6.28), sin(age*6.0+s.z*6.28))*0.25;
+    a = step(0.0, age) * (1.0 - uBurn) * (0.22 + 0.1*uHeat) * (1.0 - 0.55*u2);
+    c = mix(mix(vec3(0.45,0.75,1.0), vec3(1.0,0.62,0.3), uHeat), vec3(1.0,0.45,0.08)*1.6, uBurn); } ` });
+// 2) spark bursts at the plug tip (first one is the explained ignition; others flash during fast running)
+const bursts = [-9, -9, -9, -9, -9, -9];
+const sparks = gpuParticles({ count: 2600, size: 0.035, uniforms: { uPlug: V3(PLUG), uB: bursts },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    int i = int(floor(s.w*6.0)); float b = uB[0]; if(i==1) b=uB[1]; else if(i==2) b=uB[2]; else if(i==3) b=uB[3]; else if(i==4) b=uB[4]; else if(i==5) b=uB[5];
+    float age = t - b; float life = 0.18 + 0.45*s.x;
+    float th = s.y*2.0*PI, ph = acos(1.0-2.0*s.z); vec3 dir = vec3(sin(ph)*cos(th), cos(ph)*0.6-0.4, sin(ph)*sin(th)); dir.z = -abs(dir.z);
+    float sp = 1.5 + 3.5*s.x; p = uPlug + dir*sp*age*(1.0-0.35*age/life) + vec3(0.0,-1.2,0.0)*age*age;
+    a = (age > 0.0 && age < life) ? (1.0 - age/life) : 0.0; c = mix(vec3(1.0,0.9,0.6), vec3(0.6,0.85,1.0), s.y) * 3.0; sz = 1.0 + s.x; } ` });
+// 3) exhaust: burnt gas haze in the chamber, pushed out through the exhaust runner into the air
+const smoke = gpuParticles({ count: 7000, size: 0.13, additive: false, uniforms: { uA: V3(exPath[3]), uB: V3(exPath[2]), uC: V3(exPath[1]), uD: V3(exPath[0]), uT0: 0, uT1: 1, uCrown: 1, uRoof: ROOF, uHaze: 0 },
+  motion: `${bez}
+  void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float b = mix(uT0, uT1 - 0.6, s.x); float age = t - b; vec3 tgt = chamber(s, uCrown, uRoof);
+    float u0 = ease(age/0.45); vec3 q = mix(tgt, uA, u0);
+    float u1 = clamp((age-0.35)/0.8, 0.0, 1.0); if (age > 0.35) q = bez(uA,uB,uC,uD,u1) + (hash31(s.y*77.0)-0.5)*0.25*u1;
+    float u2 = max(0.0, age-1.15); if (age > 1.15) q = uD + vec3(1.4*u2 + 0.5*sin(u2*3.0+s.z*6.28)*u2, 0.9*u2 + 0.4*u2*u2, (s.w-0.5)*1.2*u2);
+    p = q; float fade = 1.0 - clamp(u2/2.2, 0.0, 1.0);
+    a = (age < 0.0 ? uHaze : 1.0) * fade * 0.5; c = mix(vec3(0.36,0.37,0.4), vec3(0.55,0.5,0.46), s.y); sz = 0.8 + 0.7*s.w + u2*1.5; } ` });
+// 4) heat haze rising off the hot engine (the energy that does not move the car)
+const heat = gpuParticles({ count: 6000, size: 0.07, uniforms: { uOn: 0, uT0: 0 },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float life = 2.2; float b = uT0 + s.x*12.0; float age = mod(t - b, life); float r = 1.85 + 0.25*s.y; float ph = s.z*2.0*PI;
+    p = vec3(r*cos(ph), -1.6 + 4.0*s.w + age*1.4, r*sin(ph)*0.8 - 0.3); p.x += sin(age*2.0+s.y*9.0)*0.25*age;
+    a = uOn * smoothstep(0.0,0.3,age) * (1.0 - age/life) * step(uT0, t) * 0.55; c = mix(vec3(1.0,0.35,0.08), vec3(1.0,0.7,0.3), s.y) * 1.4; sz = 0.8 + s.y + age*0.6; } ` });
+for (const p of [mist, sparks, smoke, heat]) scene.add(p);
+
+// ================= timeline (seconds; anchored to the narration) =================
+const tIntake = S(4), tInEnd = S(4, 't1'), tComp = S(6), tCompEnd = S(6, 't1'), tSpark = S(8), tBurn = S(9);
+const tSlam = T(9, 'slams', S(9) + 2.8), tExh = S(11), tExhEnd = S(11, 't1'), tRepeat = S(12), tRod = S(13), tRpm = S(14);
+const tStops = T(14, 'stops', S(14) + 2.2), tPull = T(14, 'pulling', S(14) + 4.8), tCatch = S(15), tThird = S(16), tHeat = S(17), tRad = S(18), tFollow = S(19);
+mist.u.uT0.value = tIntake + 0.2; mist.u.uT1.value = tInEnd;
+smoke.u.uT0.value = tExh + 0.2; smoke.u.uT1.value = tExhEnd;
+heat.u.uT0.value = tHeat - 0.3;
+// spark bursts: the explained ignition + flashes during the hook
+bursts[0] = tSpark + 0.12;
+
+// crank angle th(t): spin sections integrate a speed curve; the stroke-by-stroke section uses exact keys.
+function integrate(ws, t0, t1) { // ws: [[t, omega]] linear; returns table th(t) at 1/300 s from t0
+  const dt = 1 / 300, tab = [0]; let th = 0;
+  const om = (t) => { if (t <= ws[0][0]) return ws[0][1]; for (let i = 0; i < ws.length - 1; i++) if (t <= ws[i + 1][0]) return lerp(ws[i][1], ws[i + 1][1], smooth((t - ws[i][0]) / (ws[i + 1][0] - ws[i][0]))); return ws[ws.length - 1][1]; };
+  for (let t = t0; t < t1; t += dt) { th += om(t) * dt; tab.push(th); }
+  return (t) => { const x = clamp((t - t0) / dt, 0, tab.length - 1), i = Math.floor(x); return lerp(tab[i], tab[Math.min(i + 1, tab.length - 1)], x - i); };
+}
+const HOOK_W = 17;
+const spinA = integrate([[0, HOOK_W], [S(1), HOOK_W], [S(2) + 0.6, 3.2], [tIntake - 1.6, 1.4], [tIntake, 0]], 0, tIntake);
+const OFF = 2 * Math.PI + 0.35;   // frame 0 = mid-explosion (first frame doubles as the thumbnail)
+const rawA = spinA(tIntake), B = Math.ceil((rawA + OFF) / (4 * Math.PI)) * 4 * Math.PI, kA = (B - OFF) / rawA;   // land exactly on TDC at intake
+const thKeys = keys([
+  { t: tIntake, th: B }, { t: tInEnd - 0.2, th: B + Math.PI },
+  { t: tComp + 0.1, th: B + Math.PI }, { t: tCompEnd - 0.4, th: B + 2 * Math.PI },
+  { t: tSlam, th: B + 2 * Math.PI }, { t: tSlam + 0.42, th: B + 3 * Math.PI, ease: (x) => x * x },
+  { t: tExh + 0.1, th: B + 3 * Math.PI }, { t: tExhEnd - 0.2, th: B + 4 * Math.PI } ]);
+const tSpin2 = tExhEnd - 0.2;
+const spinB = integrate([[tSpin2, 0], [tRepeat + 0.6, 9], [tRod, 6], [tRpm - 0.2, 6], [tRpm + 0.5, 21], [tStops - 0.25, 21], [tStops + 0.15, 1.2], [tPull - 0.35, 1.2], [tPull + 0.1, 21], [tCatch - 0.2, 21], [tCatch + 0.8, 2.6], [DUR, 2.6]], tSpin2, DUR + 1);
+const theta = (t) => (t < tIntake ? OFF + spinA(t) * kA : t < tSpin2 ? thKeys(t).th : B + 4 * Math.PI + spinB(t));
+// burn intensity for any power stroke when running (cycle phase 2PI..3PI), and the explained first one
+function burnAt(t, cyc) {
+  if (t >= tSpark && t < tExh + 0.6) {   // explained cycle
+    const front = clamp(easeOut(ramp(t, tSpark + 0.1, tBurn + 1.0)) * 1.7, 0, 1.7);
+    const pw = ramp(t, tSpark + 0.08, tSpark + 0.3) * (1 - 0.75 * ramp(t, tSlam + 0.2, tSlam + 1.6)) * (1 - ramp(t, tExh - 0.4, tExh + 0.4));
+    return { front, power: pw * 1.15 };
+  }
+  if (t >= tIntake && t < tSpark) return { front: 0, power: 0 };
+  const ph = cyc - 2 * Math.PI; if (ph < 0 || ph > Math.PI) return { front: 0, power: 0 };
+  return { front: 1.7 * easeOut(ph / 0.5), power: Math.pow(1 - ph / Math.PI, 1.5) * 1.1 };
+}
+
+// camera path [t, pos, look, fov]
+const cam = keys([
+  { t: 0, p: [6.0, 3.6, 15.0], l: [0, 2.9, 0], f: 30 }, { t: S(1) - 0.15, p: [5.0, 3.4, 13.0], l: [0, 2.8, 0], f: 30 },
+  { t: S(2) + 0.2, p: [11.4, 4.9, 25.6], l: [0, 0.35, 0], f: 30 }, { t: S(3) - 0.2, p: [9.4, 4.2, 26.6], l: [0, 0.35, 0] },
+  { t: tIntake + 0.3, p: [4.2, 3.5, 15.8], l: [-0.7, 1.3, 0] }, { t: tInEnd, p: [3.0, 3.0, 14.2], l: [-0.6, 1.3, 0] },
+  { t: tCompEnd - 0.4, p: [5.6, 2.9, 13.6], l: [0, 1.4, 0] }, { t: tSpark + 0.15, p: [3.4, 2.9, 11.0], l: [0, 1.75, 0] },
+  { t: tSlam - 0.3, p: [3.6, 2.7, 11.8], l: [0, 1.6, 0] }, { t: tSlam + 0.9, p: [5.6, 2.3, 15.4], l: [0, 0.75, 0] },
+  { t: tExh + 0.3, p: [7.2, 3.6, 14.6], l: [0.7, 1.45, 0] }, { t: tExhEnd, p: [7.8, 3.9, 15.2], l: [0.9, 1.6, 0] },
+  { t: tRod + 0.2, p: [10.5, 4.4, 24.5], l: [0, 0.2, 0] }, { t: tRod + 2.6, p: [6.2, -0.6, 16.8], l: [0, -1.7, 0] }, { t: tRpm - 0.2, p: [5.0, -1.0, 15.5], l: [0, -1.6, 0] },
+  { t: tRpm + 1.0, p: [-8.6, 2.6, 22.5], l: [0, 1.4, 0] }, { t: tPull + 0.3, p: [-7.6, 2.5, 21.0], l: [0, 1.5, 0] },
+  { t: tThird, p: [0.6, 4.4, 28.0], l: [0, 1.6, 0] }, { t: tHeat + 0.5, p: [3.6, 3.4, 23.5], l: [0, 1.5, 0] },
+  { t: DUR, p: [6.4, 3.8, 24.0], l: [0, 1.8, 0] } ]);
+
+const STROKES = ['INTAKE', 'COMPRESSION', 'POWER', 'EXHAUST'];
+const heatCol = new THREE.Color('#ff5a1e');
+const lab = (a, b, t) => smooth(ramp(t, a, a + 0.5)) * (1 - ramp(t, b - 0.3, b));
+
+window.renderFrame = (f = 0) => {
+  const t = f / FPS;
+  // ----- engine pose + effects -----
+  const th = theta(t), cyc = pose(th);
+  const crown = crownY(th);
+  fire.scale.set(1, Math.max(0.02, ROOF - crown), 1); fire.position.y = (ROOF + crown) / 2;
+  const bn = burnAt(t, cyc); fireMat.uniforms.t.value = t; fireMat.uniforms.front.value = bn.front; fireMat.uniforms.power.value = bn.power;
+  fire.visible = bn.power > 0.002; fireLight.intensity = 70 * bn.power;
+  const ign = (t > tSpark && t < tSpark + 0.35) ? 1 - ramp(t, tSpark + 0.05, tSpark + 0.35) : 0;
+  sparkCore.material.opacity = Math.max(ign, (cyc > 1.97 * Math.PI && cyc < 2.08 * Math.PI && (t < tIntake || t > tSpin2)) ? 1 : 0); sparkCore.visible = sparkCore.material.opacity > 0.01;
+  st.passes.grade.uniforms.flash.value = ign * 0.12 + (t > tSlam && t < tSlam + 0.25 ? 0.08 * (1 - ramp(t, tSlam, tSlam + 0.25)) : 0);
+  // particles state
+  mist.u.uCrown.value = crown; smoke.u.uCrown.value = crown;
+  mist.u.uHeat.value = smooth(ramp(t, tComp + 0.3, tCompEnd)); mist.u.uBurn.value = smooth(ramp(t, tSpark + 0.1, tSpark + 0.8));
+  smoke.u.uHaze.value = 0.12 * ramp(t, tSlam + 0.3, tSlam + 1.2) * (t < tExhEnd + 3 ? 1 : 0);
+  heat.u.uOn.value = ramp(t, tHeat - 0.3, tHeat + 0.6);
+  for (const p of [mist, sparks, smoke, heat]) p.update(t, camera, renderer);
+  // heat glow on the metal at the end
+  const hk = 0.55 * smooth(ramp(t, tHeat - 0.2, tHeat + 1.2)) * (1 - 0.6 * ramp(t, tFollow, DUR));
+  for (const m of heatMats) { m.emissive.copy(heatCol); m.emissiveIntensity = hk; }
+  // ----- camera -----
+  const c = cam(t), drift = 0.35 * Math.sin(t * 0.35);
+  const shake = (t > tSlam && t < tSlam + 0.5 ? 0.12 * (1 - ramp(t, tSlam, tSlam + 0.5)) : 0) + (t < S(1) ? 0.025 : 0);
+  st.setCamera([c.p[0] + drift, c.p[1], c.p[2] - drift * 0.4], c.l, c.f, shake, t);
+  st.render(f);
+
+  // ----- UI -----
+  ui.brand(logo, { a: 0.85 * ramp(t, S(1), S(1) + 0.4) * (1 - ramp(t, tFollow - 0.3, tFollow)) });
+  // hook
+  const hookA = 1 - ramp(t, S(1) + 0.8, S(2) + 0.1);
+  if (hookA > 0) {
+    ui.spans([{ t: '100', c: PAL.cyan, at: T(0, '100', 0.25) }], 540, 420, { size: 230, t, a: hookA });
+    ui.spans([{ t: 'EXPLOSIONS', at: T(0, 'explosions', 0.95) }], 540, 590, { size: 118, t, a: hookA });
+    ui.spans([{ t: 'EVERY ', at: T(0, 'every', 1.5) }, { t: 'SECOND', c: PAL.orange, at: T(0, 'second', 2.0) }], 540, 715, { size: 92, t, a: hookA });
+    ui.note('a 4-cylinder engine at 3,000 rpm', 800, hookA * ramp(t, 1.4, 1.8));
+  }
+  // stroke pills (current stroke from the cycle phase)
+  const pillA = ramp(t, S(3) - 0.3, S(3)) * (1 - ramp(t, tRod - 0.2, tRod + 0.3));
+  const strokeIdx = Math.min(3, Math.floor(cyc / Math.PI));
+  const shown = t < S(3) + 0.2 ? -1 : (t < tExhEnd ? [S(3), S(5), S(7), S(10)].filter((x) => t >= x - 0.05).length - 1 : strokeIdx);
+  ui.pills(STROKES, shown, 300, { a: pillA, glow: 0.5 + 0.5 * Math.sin(t * 6) });
+  // labels (3D anchors)
+  const wp = P(0, wristY(th) + 0.15, 0.97);
+  ui.label('Piston', P(0.55, wp.y + 0.1, 0.8), 790, null, { k: lab(T(2, 'piston', 5.6), S(3), t) });
+  ui.label('Cylinder', P(-1.3, 0.2, 0.0), 190, 1050, { k: lab(T(2, 'cylinder', 4.8), S(3), t) });
+  ui.label('Intake valve', P(-0.55, ROOF - 0.05 + vIn.position.y, -0.1), 210, 640, { k: lab(T(4, 'intake', tIntake + 1.2), tInEnd, t) });
+  ui.label('Air + fuel', P(-0.2, (crown + ROOF) / 2, 0.2), 210, 1180, { k: lab(T(4, 'air', tInEnd - 1.2), tInEnd + 0.4, t), hot: true });
+  ui.label('Spark plug', P(0, ROOF + 1.2, -0.05), 810, 520, { k: lab(T(8, 'spark', tSpark), tBurn + 0.6, t), hot: true });
+  ui.label('Exhaust valve', P(0.55, ROOF - 0.05 + vEx.position.y, -0.1), 800, 640, { k: lab(T(11, 'exhaust', tExh + 0.2), tExhEnd, t) });
+  ui.label('Connecting rod', P(R * Math.sin(th) * 0.5, (wristY(th) + C.y + R * Math.cos(th)) / 2, 0.25), 220, 760, { k: lab(T(13, 'connecting', tRod + 0.3), tRpm, t) });
+  ui.label('Crankshaft', P(0, C.y, 1.75), 800, 1180, { k: lab(T(13, 'crankshaft', tRod + 1.2), tRpm, t) });
+  // callouts
+  ui.callout('≈ 10 : 1', 'squeezed into a tenth of the space', 540, 520, { a: win(t, T(6, '110', tComp + 2.8) - 0.1, tCompEnd + 0.8, 0.2, 0.3), t0: T(6, '110', tComp + 2.8) - 0.1, t, color: PAL.cyan, size: 110 });
+  ui.callout('2,000 °C', 'hotter than lava', 540, 520, { a: win(t, T(9, '2000', tBurn + 1.2) - 0.05, tSlam + 0.1, 0.15, 0.3), t0: T(9, '2000', tBurn + 1.2) - 0.05, t, size: 130 });
+  // 6,000 RPM counter, stop markers, 2,000 G
+  const rpmA = win(t, tRpm + 0.2, tCatch - 0.1, 0.2, 0.3);
+  if (rpmA > 0) {
+    const n = Math.round(6000 * easeOut(ramp(t, tRpm + 0.2, tRpm + 1.3)) / 100) * 100;
+    ui.callout(`${n.toLocaleString('en-US')} RPM`, '100 turns of the crank every second', 540, 520, { a: rpmA * (1 - ramp(t, tStops - 0.2, tStops)), size: 120, color: PAL.cyan });
+    // piston position graph with STOP markers (top + bottom of every turn)
+    const ga = rpmA * ramp(t, tStops - 0.25, tStops + 0.1) * (1 - ramp(t, tPull - 0.1, tPull + 0.2)), gx = 160, gy = 445, gw = 760, gh = 120;
+    if (ga > 0) { const g = ui.g; g.save(); g.globalAlpha = ga * 0.85; g.fillStyle = 'rgba(11,18,32,0.82)'; g.strokeStyle = '#2a3f5f'; g.lineWidth = 3; g.beginPath(); g.roundRect(gx - 60, gy - gh / 2 - 95, gw + 120, gh + 210, 24); g.fill(); g.stroke(); g.globalAlpha = ga; g.lineWidth = 6; g.strokeStyle = PAL.cyan; g.beginPath();
+      for (let i = 0; i <= 200; i++) { const x = gx + gw * i / 200, y = gy - gh / 2 * Math.cos(i / 200 * 4 * Math.PI); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+      const run = (t - tStops) * 0.35 % 1; const mx = gx + gw * run, my = gy - gh / 2 * Math.cos(run * 4 * Math.PI);
+      g.fillStyle = PAL.white; g.beginPath(); g.arc(mx, my, 14, 0, Math.PI * 2); g.fill(); g.restore();
+      for (let k = 0; k <= 4; k++) { const x = gx + gw * k / 4, y = gy + (k % 2 ? gh / 2 : -gh / 2); ui.text('STOP', x, y + (k % 2 ? 48 : -48), { size: 30, weight: 900, color: PAL.orange, a: ga * ramp(t, tStops + k * 0.15, tStops + k * 0.15 + 0.2), stroke: 7 }); }
+      ui.text('piston height over 2 turns', gx - 30, gy + gh / 2 + 92, { size: 26, weight: 700, color: PAL.muted, align: 'left', a: ga }); }
+    ui.callout('2,000+ G', 'every stop and restart', 540, 520, { a: rpmA * ramp(t, tPull, tPull + 0.15), t0: tPull, t, size: 130 });
+  }
+  // energy split
+  const eA = win(t, tThird - 0.1, tRad + 0.2, 0.2, 0.3);
+  ui.splitBar([{ v: 0.33, c: PAL.cyan, label: 'MOVES THE CAR' }, { v: 0.67, c: PAL.hot, label: 'HEAT' }], 120, 470, 840, 54, { k: ramp(t, T(16, 'third', tThird + 0.8) - 0.1, T(16, 'moves', tThird + 2.2) + 0.6), a: eA });
+  ui.text('≈ 1/3', 120 + 840 * 0.165, 497, { size: 32, weight: 900, color: PAL.navy, a: eA * ramp(t, T(16, 'third', tThird + 0.8), T(16, 'third', tThird + 0.8) + 0.3) });
+  ui.text('≈ 2/3', 120 + 840 * 0.665, 497, { size: 32, weight: 900, color: PAL.navy, a: eA * ramp(t, tHeat, tHeat + 0.3) });
+  // pedal pictogram: the crank works like legs on bike pedals
+  const pedA = win(t, T(13, 'legs', tRod + 4.2) - 0.2, tRpm, 0.3, 0.3);
+  if (pedA > 0) { const g = ui.g, cx = 800, cy = 560, r = 62, a = th; g.save(); g.globalAlpha = pedA;
+    g.fillStyle = 'rgba(11,18,32,0.8)'; g.strokeStyle = '#2a3f5f'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, 120, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.strokeStyle = PAL.steel; g.lineWidth = 5; g.beginPath(); g.arc(cx, cy, r * 0.55, 0, Math.PI * 2); g.stroke();
+    const px = cx + r * Math.sin(a), py = cy - r * Math.cos(a), hx = cx - 25, hy = cy - 150 + 60;
+    const d = Math.hypot(px - hx, py - hy), l1 = 70, l2 = 70, ang = Math.atan2(py - hy, px - hx), k = Math.acos(clamp((l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), -1, 1));
+    const kx = hx + l1 * Math.cos(ang - k), ky = hy + l1 * Math.sin(ang - k);
+    g.strokeStyle = PAL.orange; g.lineWidth = 12; g.lineCap = 'round'; g.beginPath(); g.moveTo(hx, hy); g.lineTo(kx, ky); g.lineTo(px, py); g.stroke();
+    g.strokeStyle = PAL.cyan; g.lineWidth = 8; g.beginPath(); g.moveTo(cx, cy); g.lineTo(px, py); g.stroke(); g.fillStyle = PAL.white; g.beginPath(); g.arc(cx, cy, 8, 0, Math.PI * 2); g.fill(); g.restore(); }
+  // end: next episode + follow
+  const nA = win(t, tRad + 0.2, DUR + 1, 0.3, 0.1);
+  if (nA > 0) { ui.text('NEXT', 540, 440, { size: 36, weight: 900, color: PAL.muted, a: nA, stroke: 8 });
+    ui.spans([{ t: 'THE ', at: tRad + 0.2 }, { t: 'RADIATOR', c: PAL.cyan, at: tRad + 0.35 }], 540, 520, { size: 104, t, a: nA }); }
+  ui.pill('FOLLOW for part 2', 540, 625, { on: true, a: ramp(t, tFollow, tFollow + 0.3), size: 40, sc: 1 + 0.05 * Math.sin(t * 7) * ramp(t, tFollow, tFollow + 0.3) });
+  // captions (sentence 0 is the hook text itself)
+  ui.captions(words.filter((w) => w.s > 0), t, { y: 1400, from: S(1) - 0.05 });
+  return true;
+};
+// sound cues for the mix (kit/explainer3d/tools/sfx.py): exact times from the same timeline as the picture
+window.events = () => {
+  const ev = [], add = (t, type, v = 1) => ev.push({ t: +t.toFixed(3), type, v });
+  let prev = theta(0);
+  for (let f = 1; f <= Math.ceil(DUR * FPS); f++) {
+    const t = f / FPS, th = theta(t), w = (th - prev) * FPS;   // crank speed rad/s
+    const crossed = (k) => Math.floor((prev - k) / (4 * Math.PI)) !== Math.floor((th - k) / (4 * Math.PI));
+    if (crossed(2 * Math.PI) && (t < tIntake || t > tSpin2)) add(t, 'fire', Math.min(1, w / 20));       // power stroke while running
+    if (crossed(0.02) || crossed(3 * Math.PI + 0.02)) add(t, 'valve', 0.6);                                // a valve opens
+    add(t, 'rpm', w); prev = th;
+  }
+  add(tSpark, 'spark'); add(tBurn, 'whoomp'); add(tSlam, 'slam'); add(tIntake + 0.2, 'intake', tInEnd - tIntake); add(tExh + 0.2, 'exhaust', tExhEnd - tExh);
+  add(tComp + 0.1, 'squeeze', tCompEnd - tComp); add(tHeat - 0.3, 'sizzle', DUR - tHeat);
+  for (const x of [S(1) + 0.05, tRod + 0.2, tRpm + 0.3, tThird - 0.3]) add(x, 'whoosh');
+  for (const x of [T(6, '110', 0), T(9, '2000', 0), tRpm + 0.2, tStops, tPull, T(16, 'third', 0), tRad + 0.3]) if (x) add(x, 'pop');
+  add(tFollow, 'chime'); add(tRad - 1.2, 'riser', 1.4);
+  for (const [i, s] of sents.entries()) add(s.t0, 'sentence', i);
+  return ev;
+};
+window.dbg = { fire, fireMat, burnAt, theta, pose, tSpark, tSlam, crownY }; window.duration = DUR; window.frames = Math.ceil(DUR * FPS);
+await fontsReady();
+window.renderFrame(0);
+window.done = true;
+</script></body></html>
