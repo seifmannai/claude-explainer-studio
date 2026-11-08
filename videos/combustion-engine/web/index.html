@@ -34,18 +34,29 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 
 const W = 1080, H = 1920;
 const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H, false); renderer.setPixelRatio(1);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.localClippingEnabled = true;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#0b1220');
 scene.fog = new THREE.Fog('#0b1220', 26, 45);
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+// virtual photo studio: dark room + big soft light panels -> long clean highlights on metal (lighting skill: PMREM fromScene)
+const studio = new THREE.Scene(); studio.background = new THREE.Color('#2b3646');
+const panel = (w, h, x, y, z, ry, rx, k, col = '#ffffff') => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); studio.add(m); };
+panel(18, 9, 0, 9, 3, 0, Math.PI / 2, 4.0);            // top softbox
+panel(5, 14, -9, 2, 3, Math.PI / 2, 0, 3.0);          // left strip
+panel(4, 14, 9, 2, 2, -Math.PI / 2, 0, 2.2, '#cfefff');
+panel(16, 8, 2, 3, 11, Math.PI, 0, 1.6);   // front fill softbox (behind camera) // right strip, cool
+panel(10, 3, 0, 1, -10, 0, 0, 0.9, '#3fe0e8');          // cyan back panel (brand rim)
+panel(30, 30, 0, -6, 0, 0, -Math.PI / 2, 0.12, '#22344f'); // floor bounce
+scene.environment = pmrem.fromScene(studio, 0.02).texture;
+scene.environmentIntensity = 1.35;
 
 const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
 camera.position.set(11.4, 4.9, 25.6); camera.lookAt(0, 0.55, 0);
@@ -54,8 +65,9 @@ camera.position.set(11.4, 4.9, 25.6); camera.lookAt(0, 0.55, 0);
 const key = new THREE.DirectionalLight('#ffffff', 2.2); key.position.set(6, 9, 8); key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048); key.shadow.camera.left = -6; key.shadow.camera.right = 6; key.shadow.camera.top = 6; key.shadow.camera.bottom = -6; key.shadow.bias = -0.0004;
 scene.add(key);
-const rim = new THREE.DirectionalLight('#3fe0e8', 1.4); rim.position.set(-7, 4, -6); scene.add(rim);
-scene.add(new THREE.HemisphereLight('#9fc4ff', '#22344f', 0.9));
+const fill = new THREE.DirectionalLight('#cfe3ff', 0.6); fill.position.set(-6, 3, 7); scene.add(fill);
+const rim = new THREE.DirectionalLight('#3fe0e8', 2.2); rim.position.set(-6, 5, -7); scene.add(rim);
+scene.add(new THREE.HemisphereLight('#9fc4ff', '#22344f', 0.25));
 
 // floor: blueprint grid
 const grid = new THREE.GridHelper(40, 40, '#1d3354', '#14233a'); grid.position.y = -4.2; scene.add(grid);
@@ -64,8 +76,12 @@ floor.rotation.x = -Math.PI / 2; floor.position.y = -4.21; floor.receiveShadow =
 
 // materials
 const cut = [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)]; // removes the front half (z > 0)
-const metal = (c, r = 0.35, m = 0.85, clip = false) => new THREE.MeshStandardMaterial({ color: c, roughness: Math.max(r, 0.32), metalness: m * 0.55, clippingPlanes: clip ? cut : null, side: THREE.FrontSide });
-const section = new THREE.MeshStandardMaterial({ color: '#b8582f', roughness: 0.7, metalness: 0.1, clippingPlanes: cut, side: THREE.BackSide });
+// procedural micro-texture: machined/cast surface variation (materials skill: roughnessMap + bumpMap)
+const noiseTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const d = g.createImageData(256, 256);
+  for (let i = 0; i < 256 * 256; i++) { const v = 150 + Math.random() * 70; d.data[i * 4] = d.data[i * 4 + 1] = d.data[i * 4 + 2] = v; d.data[i * 4 + 3] = 255; }
+  g.putImageData(d, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); return t; })();
+const metal = (c, r = 0.35, m = 0.85, clip = false, extra = {}) => new THREE.MeshPhysicalMaterial({ color: c, roughness: r, metalness: Math.min(1, m + 0.1), roughnessMap: noiseTex, bumpMap: noiseTex, bumpScale: r > 0.4 ? 0.6 : 0.15, clearcoat: 0, clippingPlanes: clip ? cut : null, side: THREE.FrontSide, ...extra });
+const section = new THREE.MeshStandardMaterial({ color: '#c0602f', roughness: 0.55, metalness: 0.0, clippingPlanes: cut, side: THREE.BackSide });
 const add = (geo, mat, x = 0, y = 0, z = 0, sectionToo = false) => {
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m);
   if (sectionToo) { const s = new THREE.Mesh(geo, section); s.position.copy(m.position); scene.add(s); }
@@ -100,7 +116,7 @@ const fireLight = new THREE.PointLight('#ff8a2e', 9, 4, 2); fireLight.position.s
 
 // piston (at top of power stroke, slightly down)
 const PY = 0.55;
-const pistonMat = metal('#c9d2dc', 0.25, 0.9);
+const pistonMat = metal('#d9dfe6', 0.2, 0.95);
 add(new THREE.CylinderGeometry(0.97, 0.97, 1.1, 64), pistonMat, 0, PY, 0);
 for (let i = 0; i < 3; i++) add(new THREE.TorusGeometry(0.975, 0.025, 8, 64), metal('#3a4350', 0.4, 0.8), 0, PY + 0.38 - i * 0.14, 0).rotation.x = Math.PI / 2;
 // wrist pin + connecting rod (angled) + crank
@@ -113,7 +129,7 @@ rod.rotation.z = Math.atan2(-(pinB.x - wrist.x), pinB.y - wrist.y) + Math.PI;
 add(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 24), metal('#d5dce4', 0.25, 0.9), wrist.x, wrist.y, 0).rotation.x = Math.PI / 2;
 add(new THREE.CylinderGeometry(0.3, 0.3, 0.42, 32), metal('#8f9bab', 0.35, 0.85), pinB.x, pinB.y, 0).rotation.x = Math.PI / 2;
 // crankshaft: main journal, webs with counterweight
-const sh = add(new THREE.CylinderGeometry(0.28, 0.28, 3.4, 32), metal('#b3bdc9', 0.3, 0.9), crankC.x, crankC.y, 0); sh.rotation.x = Math.PI / 2;
+const sh = add(new THREE.CylinderGeometry(0.28, 0.28, 3.4, 32), metal('#aab4c0', 0.34, 0.9, false, { anisotropy: 0.5 }), crankC.x, crankC.y, 0); sh.rotation.x = Math.PI / 2;
 for (const z of [-0.35, 0.35]) {
   const web = new THREE.Shape(); web.absarc(0, 0, 1.15, Math.PI * 0.62, Math.PI * 1.38, false); web.lineTo(0, 0); web.closePath();
   const wg = new THREE.ExtrudeGeometry(web, { depth: 0.22, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 }); wg.translate(0, 0, -0.11);
@@ -130,9 +146,10 @@ const port = (x, col) => { const g = new THREE.TorusGeometry(0.9, 0.22, 16, 48, 
 port(-0.55, '#2c6fb8'); port(0.55, '#b8542c');
 
 // post: bloom on emissive only
-const composer = new EffectComposer(renderer);
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
-composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.35, 0.4, 0.97));
+const gtao = new GTAOPass(scene, camera, W, H); gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 2, thickness: 1, scale: 0.8 }); gtao.blendIntensity = 0.7; composer.addPass(gtao);
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.35, 0.4, 1.4));
 composer.addPass(new OutputPass());
 composer.render();
 

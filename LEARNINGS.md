@@ -1,6 +1,8 @@
 # Learnings (newest first)
 
 ## 2026-11-08 - Combustion engine style frame
+- Applied threejs-lighting/materials/postprocessing: three r170 (scene.environmentIntensity, GTAOPass), MeshPhysicalMaterial with real metalness + noise roughness/bump maps, MSAA composer target, three-point light + cyan rim. Poly Haven HDRIs are blocked from the cloud workspace, so the environment is a procedural "photo studio" scene (softbox planes) via PMREM.fromScene.
+- Lesson: full metalness reflects the environment; a dark studio makes steel black. Use a mid-grey studio background (#2b3646) with large softboxes incl. one behind the camera, environmentIntensity ~1.35. Flat bright end caps blow out under bloom: raise bloom threshold above 1 so only emissive parts glow.
 - First style frame made from memory of tech-explainer-3d only; viral-hooks, threejs-* and the Blender four-stroke demo were not opened. Rule added: read the skills you rely on and list them in PLAN.md.
 - Vertical framing: hook text needs the top ~25%, captions the bottom ~20%; keep the subject between y=520 and y=1560 px. Camera at ~28 m with fov 30 fits a 7.6 m-tall cutaway.
 - Metal looked too dark with metalness 0.85 and RoomEnvironment only; metalness ~0.45 + stronger hemisphere fill reads better on CPU renders.
