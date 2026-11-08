@@ -18,7 +18,7 @@ while ($true) {
       'speedtest' { if (Ok $job.page) { node "$Studio\kit\local\local_render.mjs" speedtest $Studio $job.page "$Root\out\speedtest" 30 *>> $log } }
       'render' {
         if ((Ok $job.page) -and (Ok $job.name) -and ($job.range -match '^\d+-\d+$')) {
-          $env:RESUME = '1'; node "$Studio\kit\local\local_render.mjs" frames $Studio $job.page "$Root\out\$($job.name)" $job.range *>> $log
+          $env:RESUME = '1'; $env:SCALE = $(if ("$($job.scale)" -match '^(1|1\.25|1\.5|1\.75|2)$') { "$($job.scale)" } else { '1' }); Write-Host "   rendering $($job.name) at $($env:SCALE)x - double-click '3-VIEW PROGRESS' to watch" -ForegroundColor Cyan; node "$Studio\kit\local\local_render.mjs" frames $Studio $job.page "$Root\out\$($job.name)" $job.range *>> $log
         } else { 'rejected: page/name/range' | Out-File $log -Append } }
       'encode' {
         if ((Ok $job.name) -and (Ok $job.audio)) {
