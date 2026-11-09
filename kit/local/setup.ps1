@@ -22,6 +22,7 @@ Set-ItemProperty -Path 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences' -Na
 if (Test-Path "$Root\studio\.git") { git -C "$Root\studio" pull } else { git clone https://github.com/seifmannai/claude-explainer-studio "$Root\studio" }
 npm install --prefix "$Root\studio\kit\local"
 npm install --prefix "$Root\studio\videos\combustion-engine\web" three@0.170.0 --no-save
+npm install --prefix "$Root\studio\videos\microwave\web" three@0.170.0 --no-save
 
 Write-Host "`nGPU speed test (a browser window will open and close by itself) ..." -ForegroundColor Yellow
 node "$Root\studio\kit\local\local_render.mjs" speedtest "$Root\studio" "videos/combustion-engine/web/index.html" "$Root\out\speedtest" 30

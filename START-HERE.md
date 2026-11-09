@@ -44,8 +44,10 @@ Free / open-source tools only. Never paid tools.
 - `3-VIEW PROGRESS.bat` - watch a render.
 - Extra tools come from the runner's `tools` job: Blender, faster-whisper, Kokoro (`models\kokoro`, Python env `py\`),
   Chatterbox (Python env `pycb\`), HyperFrames (`hyperframes\`).
-- **Moving to another PC:** copy the whole folder, then run `1-SETUP`, start the runner, and let Claude drop a `{"action":"tools"}` job.
-  The Python envs (`py\`, `pycb\`) and `hyperframes\` are tied to the old PC and get rebuilt; `models\`, `out\`, `studio\` copy fine.
+- `4-MAKE PORTABLE COPY.bat` - builds a slim copy (`HowItReallyWorks-portable`, usually < 1 GB) next to the folder.
+- **Moving to another PC:** copy the portable folder (not the full ~10 GB one), run `1-SETUP`, start the runner,
+  connect the folder in the Claude desktop app, then Claude drops a `{"action":"tools"}` job, which rebuilds what was left out:
+  Python envs (`py\`, `pycb\`), `hyperframes\`, `models\` (Kokoro). Finished videos (`out\*.mp4`) are kept; render frames are not.
 - Claude reaches this folder through the Claude desktop app: connect the folder (Add folder) so Claude can drop jobs and read logs.
 
 ## 6. The code repo
