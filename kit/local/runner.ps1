@@ -33,7 +33,7 @@ while ($true) {
           "saved $($job.slug) (Poly Haven, CC0)" | Out-File $log -Append
         } else { 'rejected: slug' | Out-File $log -Append } }
       'still' { if ((Ok $job.page) -and (Ok $job.name)) { node "$Studio\kit\local\local_render.mjs" still $Studio $job.page "$Root\out\stills" $job.name *>> $log } else { 'rejected: page/name' | Out-File $log -Append } }
-      'tools' { Write-Host "   installing Blender + faster-whisper (big download, can take 10-20 min)" -ForegroundColor Cyan; & "$Studio\kit\local\tools.ps1" -Root $Root *>> $log }
+      'tools' { Write-Host "   installing Blender, faster-whisper, Kokoro, Chatterbox, HyperFrames (big downloads, 20-40 min)" -ForegroundColor Cyan; & "$Studio\kit\local\tools.ps1" -Root $Root *>> $log }
       'words' {
         if ((Ok $job.audio) -and (Ok $job.name)) {
           $txt = $(if (Ok $job.script) { "$Studio\$($job.script)" } else { $null })

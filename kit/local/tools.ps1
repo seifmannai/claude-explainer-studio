@@ -22,4 +22,25 @@ if (-not (Test-Path $py)) {
 & $py -m pip install faster-whisper numpy nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
 'downloading the whisper model (about 3 GB, first time only) and testing the GPU ...'
 & $py "$Root\studio\kit\local\words.py" --selftest
-'== tools done =='
+
+'== Kokoro voice (Apache-2.0) =='
+& $py -m pip install kokoro-onnx soundfile
+$kd = "$Root\models\kokoro"; New-Item -ItemType Directory -Force $kd | Out-Null
+foreach ($f in 'kokoro-v1.0.onnx', 'voices-v1.0.bin') { if (-not (Test-Path "$kd\$f")) { Invoke-WebRequest -Uri "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f" -OutFile "$kd\$f" } }
+& $py -c "from kokoro_onnx import Kokoro; k = Kokoro(r'$kd\kokoro-v1.0.onnx', r'$kd\voices-v1.0.bin'); a, sr = k.create('Kokoro works.', voice='am_puck'); print('KOKORO OK', len(a) / sr, 's')"
+
+'== Chatterbox voice (MIT, expressive) in its own env: <Root>\pycb =='
+$cb = "$Root\pycb\Scripts\python.exe"
+if (-not (Test-Path $cb)) { if (Get-Command py -ErrorAction SilentlyContinue) { py -3.11 -m venv "$Root\pycb" } else { python -m venv "$Root\pycb" } }
+& $cb -m pip install --upgrade pip
+# torch 2.6 CUDA 12.4 build still supports Pascal GPUs (GTX 1060)
+& $cb -m pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+& $cb -m pip install chatterbox-tts
+& $cb "$Root\studio\kit\local\voice_cb.py" --selftest "$Root\out\voice_test"
+
+'== HyperFrames (Apache-2.0, HTML -> video for 2D/cartoon scenes) =='
+node -v
+npm install --prefix "$Root\hyperframes" hyperframes
+npx --prefix "$Root\hyperframes" hyperframes --version
+
+'== tools done ==' 

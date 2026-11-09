@@ -17,6 +17,7 @@ This repo is our studio for a YouTube channel of 3D engineering explainer videos
 ## Save credits (efficiency rules)
 - PC work = ONE `make` job (kit/local/make.ps1): words -> align -> sound cues -> music/SFX/mix -> render -> encode -> preview + sheet.
   Job: `{"action":"make","slug":"<slug>","name":"<slug>_v1","voice":"in/<file>.wav","scale":"2"}` (optional "steps":"render,encode").
+- The PC has (via the `tools` job): Kokoro (models\kokoro, env py), Chatterbox (env pycb, expressive voice), faster-whisper, Blender, HyperFrames (hyperframes\). Use them: the voice is made on the PC by the `make` job's `voice` step from videos/<slug>/script.txt ("tts":"kokoro" default = am_michael*0.4+am_puck*0.6, or "chatterbox"); Blender for photoreal hero shots; HyperFrames for 2D/cartoon scenes. Cloud only writes code and checks stills.
 - Then wait with ONE background timer (render ~0.14 s/frame at 2x + ~2 min encode) and read only `out/<name>/STATUS.txt` and `out/<name>/sheet.jpg`.
   QA from `preview.mp4` (small); never stage the full MP4 (the bridge times out above ~100 MB).
 - Never list the PC folder recursively (one listing was 200k characters). List the exact folder, stage exact files.

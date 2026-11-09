@@ -3,7 +3,8 @@
 # Job fields:
 #   slug   videos/<slug>            (required)
 #   name   output name, e.g. engine_v2   (required)
-#   voice  in/<file>.wav            (required for words/audio)
+#   voice  in/<file>.wav            (required for words/audio unless the 'voice' step makes it)
+#   tts    'kokoro' (default) or 'chatterbox' for the 'voice' step; it reads videos/<slug>/script.txt (text|speed|pause)
 #   steps  comma list, default "words,audio,render,encode"
 #   scale  1..2 (default 2)
 #   page   default web/short.html
@@ -18,7 +19,7 @@ $job = Get-Content $JobFile -Raw | ConvertFrom-Json
 if (-not ((Ok $job.slug) -and (Ok $job.name))) { 'rejected: slug/name'; exit 1 }
 $vid = "$Studio\videos\$($job.slug)"; $aud = "$vid\audio"; $out = "$Root\out\$($job.name)"
 $page = "videos/$($job.slug)/" + $(if (Ok $job.page) { $job.page } else { 'web/short.html' })
-$steps = $(if ($job.steps) { "$($job.steps)" } else { 'words,audio,render,encode' }).Split(',') | ForEach-Object { $_.Trim() }
+$steps = $(if ($job.steps) { "$($job.steps)" } else { 'voice,words,audio,render,encode' }).Split(',') | ForEach-Object { $_.Trim() }
 $scale = $(if ("$($job.scale)" -match '^(1|1\.25|1\.5|1\.75|2)$') { "$($job.scale)" } else { '2' })
 New-Item -ItemType Directory -Force $out | Out-Null
 $status = "$out\STATUS.txt"; "make $($job.name) started $(Get-Date -f s) steps=$($steps -join ',') scale=$scale" | Out-File $status -Encoding utf8
@@ -31,7 +32,14 @@ function Step($n, [scriptblock]$b) {
   $line | Out-File $status -Append -Encoding utf8
   if (-not $ok) { "FAILED at $n - see logs" | Out-File $status -Append -Encoding utf8; exit 1 }
 }
+Step 'voice' {
+  New-Item -ItemType Directory -Force $aud | Out-Null
+  if ("$($job.tts)" -eq 'chatterbox') { & "$Root\pycb\Scripts\python.exe" "$Studio\kit\local\voice_cb.py" "$vid\script.txt" $aud }
+  else { $env:KOKORO_DIR = "$Root\models\kokoro"; & $py "$Studio\kit\explainer3d\tools\voice_blend.py" "$vid\script.txt" $aud }
+  if ($LASTEXITCODE -eq 0) { New-Item -ItemType Directory -Force "$Root\in" | Out-Null; Copy-Item "$aud\voice.wav" "$Root\in\$($job.slug)_voice.wav" -Force; Copy-Item "$aud\voice.wav" "$out\voice.wav" -Force; Copy-Item "$aud\sentences.json" "$out\sentences.json" -Force }
+}
 if (($steps -contains 'words') -or ($steps -contains 'audio')) {
+  if (($steps -contains 'voice') -and -not $job.voice) { $job | Add-Member -NotePropertyName voice -NotePropertyValue "in/$($job.slug)_voice.wav" -Force }
   if (-not (Ok $job.voice) -or -not (Test-Path "$Root\$($job.voice)")) { 'missing voice file' | Out-File $status -Append; exit 1 }
   Copy-Item "$Root\$($job.voice)" "$aud\voice.wav" -Force
 }
