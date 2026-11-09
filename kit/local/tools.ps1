@@ -53,6 +53,6 @@ node -v
 New-Item -ItemType Directory -Force "$Root\hyperframes" | Out-Null
 if (-not (Test-Path "$Root\hyperframes\package.json")) { '{"name":"hirw-hyperframes","private":true}' | Out-File "$Root\hyperframes\package.json" -Encoding ascii }
 npm install --prefix "$Root\hyperframes" hyperframes
-npx --prefix "$Root\hyperframes" hyperframes --version
+npx --yes --prefix "$Root\hyperframes" hyperframes --version
 
 '== tools done ==' 
