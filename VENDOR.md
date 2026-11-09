@@ -28,3 +28,5 @@ Lists to watch for new tools:
 - github.com/zhuyansen/awesome-claude-video-skills
 - github.com/opusvideo/awesome-claude-video
 - github.com/LeaddeOpenLab/awesome-opus-5-5-video-prompts
+
+- skills/ours/cartoon-audio-short (ours): vertical cartoon short from the user's voiceover, music + SFX at measured levels (used for the cat short).

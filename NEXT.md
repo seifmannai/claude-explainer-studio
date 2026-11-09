@@ -1,6 +1,15 @@
 # Where we left off (read this first in a new session)
 
-Last update: 2026-11-09
+Last update: 2026-11-09 (morning). New here? Read START-HERE.md first.
+
+## Right now
+- Video 2 = THE MICROWAVE, "you invent it" format (videos/microwave). Topic, storyboard, voice (blend40) and look approved by Asma.
+  Asma said: start making it, ask only important questions.
+- PC tools install (runner `tools` job, 2026-11-09): Kokoro OK; Blender + faster-whisper were already installed.
+  Chatterbox + HyperFrames were re-running (job d_tools_1109). Asma will say when it finished; then read logs/d_tools_1109.log ONCE
+  and check the lines "CHATTERBOX OK" and the HyperFrames version.
+- Next step after that: re-run the microwave stills (fixes written, not yet checked), then sound kit, then one `make` job
+  ("tts":"kokoro", voice made on the PC from videos/microwave/script.txt).
 
 ## Done
 - Video 1: combustion engine Short (videos/combustion-engine), rendered on the PC GPU, posted by the user on 2026-11-09.
@@ -14,12 +23,10 @@ Last update: 2026-11-09
 - First stills looked promising (water buddies, cat, phone) but: too bright, fridge was solid (now hollow), window hidden behind wall (now cut out), pizza close-ups milky (now lid lifts off, top-down camera). These fixes are written but NOT yet checked: re-run stills first (`node kit/explainer3d/tools/stills.mjs . videos/microwave/web/short.html /tmp/mw2 15,80,225,330,735,1520,1700,1830`).
 - Still to do: sound kit (SFX for every event + story music), PC render with make (steps render,encode, final.wav staged to the PC).
 
-## Next task
-Plan video 2 using every helpful skill (viral-hooks, ig-reel hook scorer, ig-viral for what works in the niche,
-tech-explainer-3d, explainer-diagrams, lemo-opuscar styles, kinetic-typography...) to maximise reach:
-strong hook, re-hooks, many varied visuals (not one object for 60 s), context-first storytelling (styles/STYLE.md).
-Deliver: 3 topic options with hooks -> user picks -> script -> voice -> page -> one `make` job.
-STATUS 2026-11-09: user feedback: v1 too technical. Read styles/FUN-RULES.md first. Discussing style/character/voice before choosing topic; nothing built yet.
+## Video 2 history (2026-11-09)
+3 topic options (videos/_video2-options/TOPICS.md) -> Asma picked the microwave. v1 feedback (too technical) -> styles/FUN-RULES.md.
+Asma's choices: high-quality environment, storyboard first, build things in the scene, no inventor character, voice blend40, much better sound.
+Also: the engine Short's YouTube title was left as "Upload video" - remind Asma to set titles before publishing.
 
 ## Known small fixes for v2 of the engine page
 - Hook text "100 EXPLOSIONS EVERY SECOND" overlaps the engine while fading.
