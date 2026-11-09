@@ -2,7 +2,8 @@
 
 Format: vertical 1080x1920, ~65 s. Story format: "YOU invent it" (styles/FUN-RULES.md).
 Look: high-quality cartoon 3D (kit/toon-engine base, upgraded lighting), a full cosy kitchen at night that gets built up as the story goes.
-Hero: "You", a small inventor character (design TBD). The narrator talks to it like a friend.
+No on-screen inventor for now (user, 2026-11-09): the narrator talks to the viewer; the camera is "you". Hands or a character only if a better idea comes up.
+Voice: new voice being auditioned (8 Kokoro voices sent).
 New words: only "waves". One number at most.
 
 ## Hooks (viral-hooks + hookscore)
@@ -34,3 +35,11 @@ New words: only "waves". One number at most.
 ## Open questions for the user
 - The look of "You" (the inventor) and whether the cat stays as a sidekick.
 - Voice: Kokoro written casually, or the user's own voice.
+
+## Sound plan (user: sound must be way better)
+- Every visible action gets its own sound: fridge hum + door suck, CLONK on the counter, match strike, fire whoosh, smoke-alarm beeps, sprinkler hiss, light-switch clicks, parts snapping together, magnet hum rising, wave 'whoom' rings, metal clanks, net drop, water-buddy boings, sizzle, DING, crunchy bite.
+- Room tone under everything (quiet night kitchen, fridge hum, a clock tick) so silence is never dead.
+- Music follows the story: sneaky night pizzicato -> chaos sting on the fire -> building groove when you get smarter -> tension on each 'but there's a problem' -> happy resolve on the DING. Hard stops before the big gags.
+- Comedy timing: 0.3-0.5 s of silence before payoffs; record-scratch or freeze on fails.
+- Levels: music ~-14 dB under voice, SFX allowed louder on gags (peaks <= voice peak), measured as in explainer-voice-and-reference.
+- All sounds synthesized in code or CC0 (freesound CC0 / Sonniss GDC free bundles, need to check reachability).
