@@ -25,3 +25,11 @@ Stats after ~9 h: 4 views, 2 likes. The YouTube title was left as "Upload video"
 - kit/toon-engine (Three.js cartoon, ink outlines, used for "The Cat Who Sank Three Ships"): the right base for fun 3D.
 - Vendor styles to borrow from: 3d-toy-character (soft vinyl toy mascots), hand-drawn-cartoon (storybook ink with boil), system-diagram-animation (packets on a dark stage, for the "inside" moment), kinetic-typography (word slams for the hook).
 - kit/explainer3d (realistic metal) stays for short "look inside" inserts only, not the whole video.
+
+## Main story format: "YOU invent it" (user idea, 2026-11-09)
+Talk to the viewer as the inventor, breaking the fourth wall: "So you want X. Easy, you do Y... but there's a problem. So you get smarter and add Z..."
+- Every part appears only as the fix to a problem the viewer just watched happen. No part is named before it's needed.
+- Each "but there's a problem" is a re-hook (aim for one every 10-20 s).
+- First try is dumb and funny (set fuel on fire -> the car is on fire). Fails get gags.
+- Last line: "Congrats, you just invented the [real thing]" + one real-world wow.
+- The viewer can be a character on screen (a little inventor or mascot) that the narrator talks to.
