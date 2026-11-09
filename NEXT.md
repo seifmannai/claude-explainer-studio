@@ -8,6 +8,12 @@ Last update: 2026-11-09
 - One-job PC pipeline `make` works (words + audio tested; render/encode use the same tools as v1). See CLAUDE.md "Save credits".
 - Skills added: instagram-agent (skills/vendor/instagram-agent), notes from everything-claude-code (skills/notes).
 
+## Microwave video (in progress, 2026-11-09)
+- Script + timings done: videos/microwave/script.txt, audio/sentences.json, audio/words.json (voice = Kokoro am_michael*0.4 + am_puck*0.6 via kit/explainer3d/tools/voice_blend.py; voice.wav not committed, rebuild with that tool).
+- Scene page: videos/microwave/web/short.html + world.js (kitchen, all props, timeline, sound cues in window.events()).
+- First stills looked promising (water buddies, cat, phone) but: too bright, fridge was solid (now hollow), window hidden behind wall (now cut out), pizza close-ups milky (now lid lifts off, top-down camera). These fixes are written but NOT yet checked: re-run stills first (`node kit/explainer3d/tools/stills.mjs . videos/microwave/web/short.html /tmp/mw2 15,80,225,330,735,1520,1700,1830`).
+- Still to do: sound kit (SFX for every event + story music), PC render with make (steps render,encode, final.wav staged to the PC).
+
 ## Next task
 Plan video 2 using every helpful skill (viral-hooks, ig-reel hook scorer, ig-viral for what works in the niche,
 tech-explainer-3d, explainer-diagrams, lemo-opuscar styles, kinetic-typography...) to maximise reach:

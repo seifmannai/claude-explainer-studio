@@ -1,0 +1,349 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- "You invent the microwave" - Short (1080x1920, 30 fps). Story timed to audio/sentences.json + audio/words.json. -->
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+<link rel="stylesheet" href="../../../kit/fonts/inter.css">
+<style>html,body{margin:0;background:#070d18;overflow:hidden} canvas{display:block;width:1080px!important;height:1920px!important}</style>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+import { THREE, W, H, FPS, PAL, clamp, lerp, smooth, easeOut, easeIn, ramp, win, keys, noise1, hash, rbox, createStudio, fontsReady, loadJSON, loadImage } from '../../../kit/explainer3d/core.js';
+import { gpuParticles } from '../../../kit/explainer3d/particles.js';
+import { createUI } from '../../../kit/explainer3d/ui.js';
+import { buildKitchen, OVEN, mat, glow, add } from './world.js';
+
+const st = await createStudio({ hdri: null, grid: false, bg: '#0d1220', fog: null, exposure: 1.0, bloom: [0.32, 0.5, 1.25], dof: { aperture: 0.00045, maxblur: 0.005 }, fov: 40 });
+const { scene, camera, renderer } = st;
+st.passes.gtao.updateGtaoMaterial({ radius: 0.12, distanceExponent: 2, thickness: 0.3, scale: 1 }); st.passes.gtao.blendIntensity = 0.8;
+const { key, fill, rim } = st.lights;
+Object.assign(key.shadow.camera, { left: -2.5, right: 2.5, top: 2.5, bottom: -2.5, near: 1, far: 30 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.normalBias = 0.01;
+const hemi = scene.children.find((o) => o.isHemisphereLight);
+const ui = createUI(st);
+const sents = await loadJSON('../audio/sentences.json', []);
+const words = await loadJSON('../audio/words.json', []);
+const logo = await loadImage('../../../brand/logo-800.png');
+const DUR = (sents.length ? sents[sents.length - 1].t1 : 68) + 1.2;
+const S = (i, k = 't0') => (sents[i] ? sents[i][k] : 0);
+const T = (si, w, fb = S(si)) => { const x = words.find((q) => q.s === si && q.w.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(w)); return x ? x.t : fb; };
+
+// ================= world =================
+const Wd = buildKitchen(scene);
+const { fr, frDoor, frLight, bulb, lampLight, strip, alarmLed, radio, cat, phone, router, oven, gadget, pizza, fire, net, cheese, SPOT } = Wd;
+add(Wd.K, new THREE.PlaneGeometry(10, 8), mat('#d8c3a3', { roughness: 0.95, clearcoat: 0 }), [0, 2.95, 1], [Math.PI / 2, 0, 0]);   // ceiling
+// front plate of the first (blind) box
+const front = new THREE.Group(); oven.root.add(front);
+add(front, rbox(OVEN.w, OVEN.h, 0.018, 0.008), oven.panels.top.children[0].material, [0, OVEN.h / 2, OVEN.d / 2 - 0.009]);
+const steel = oven.panels.top.children[0].material;
+// gadget lives in the bay on the right of the box
+const GADGET = new THREE.Vector3(0.36, 0.918, -0.32);
+gadget.root.position.copy(GADGET);
+const PIZZA = new THREE.Vector3(SPOT.x - 0.07, 0.9, SPOT.z);
+
+// ================= particles =================
+const V3 = (v) => new THREE.Vector3(...v);
+const FIRE = new THREE.Vector3(0.5, 0.9, -0.28);
+fire.root.position.copy(FIRE);
+const embers = gpuParticles({ count: 2500, size: 0.012, uniforms: { uO: FIRE.clone(), uOn: 0 },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float life = 0.8 + 0.9*s.x; float age = mod(t + s.y*life, life);
+    p = uO + vec3((s.z-0.5)*0.08 + sin(age*7.0+s.w*6.0)*0.03*age, 0.05 + age*0.45, (s.w-0.5)*0.08);
+    a = uOn * (1.0-age/life); c = mix(vec3(1.0,0.55,0.15), vec3(1.0,0.85,0.4), s.x)*3.0; sz = 0.6 + s.w; }` });
+const smoke = gpuParticles({ count: 3000, size: 0.12, additive: false, uniforms: { uO: FIRE.clone(), uOn: 0 },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float life = 2.2 + 1.5*s.x; float age = mod(t + s.y*life, life);
+    p = uO + vec3((s.z-0.5)*0.1 + sin(age*2.0+s.w*6.0)*0.08*age + age*0.05, 0.2 + age*0.55, (s.w-0.5)*0.1 + age*0.06);
+    a = uOn * 0.35 * (1.0-age/life) * clamp(age*3.0, 0.0, 1.0); c = mix(vec3(0.32), vec3(0.5), s.x); sz = 0.6 + age*1.4; }` });
+const rain = gpuParticles({ count: 5000, size: 0.01, additive: false, uniforms: { uOn: 0 },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float life = 0.6; float age = mod(t*1.0 + s.y*life, life);
+    p = vec3(-0.6 + s.x*2.2, 2.9 - age*5.0, -0.6 + s.z*1.5);
+    a = uOn * 0.7 * step(0.9, p.y); c = vec3(0.6,0.8,1.0); sz = 0.8 + s.w; }` });
+const steam = gpuParticles({ count: 2500, size: 0.05, additive: false, uniforms: { uO: PIZZA.clone(), uOn: 0, uR: 0.12 },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float life = 1.4 + s.x; float age = mod(t + s.y*life, life); float r = sqrt(s.z)*uR, th = s.w*6.283;
+    p = uO + vec3(r*cos(th) + sin(age*3.0+s.x*9.0)*0.02, 0.03 + age*0.18, r*sin(th));
+    a = uOn * 0.22 * (1.0-age/life) * clamp(age*4.0,0.0,1.0); c = vec3(0.95); sz = 0.5 + age; }` });
+const puff = gpuParticles({ count: 1500, size: 0.1, additive: false, uniforms: { uO: FIRE.clone(), uT0: -9 },   // steam burst when the fire goes out
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float age = t - uT0; float life = 1.2 + s.x; vec3 d = normalize(vec3(s.z-0.5, 0.6+s.y, s.w-0.5));
+    p = uO + d*(0.5*age - 0.12*age*age) + vec3(0.0, 0.1, 0.0);
+    a = (age > 0.0 && age < life) ? 0.3*(1.0-age/life) : 0.0; c = vec3(0.8); sz = 0.5 + age*1.2; }` });
+const cheeseSteam = gpuParticles({ count: 2000, size: 0.25, additive: false, uniforms: { uOn: 0, uX: 60 },
+  motion: `void particle(vec4 s, float t, out vec3 p, out float a, out vec3 c, out float sz){
+    float life = 2.0 + s.x; float age = mod(t + s.y*life, life);
+    p = vec3(uX + (s.z-0.5)*5.0 + sin(age*2.0+s.w*9.0)*0.3, -3.5 + age*3.5, 0.5 + s.w*1.5);
+    a = uOn * 0.3 * (1.0-age/life); c = vec3(1.0, 0.95, 0.9); sz = 0.6 + age; }` });
+for (const p of [embers, smoke, rain, steam, puff, cheeseSteam]) scene.add(p);
+
+// waves: glowing rings (pool), spawned at times
+const ringMat = (c) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(2.2), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const rings = []; for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.006, 8, 96), ringMat(PAL.cyan)); m.visible = false; scene.add(m); rings.push(m); }
+// bouncing pulses inside the box
+const pulses = []; for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.018, 16, 12), glow(PAL.cyan, 3.5)); m.visible = false; scene.add(m); pulses.push(m); }
+// the fat wave at the net (blob with grumpy eyes)
+const blob = new THREE.Group(); scene.add(blob);
+add(blob, new THREE.SphereGeometry(0.9, 64, 48), new THREE.MeshPhysicalMaterial({ color: '#3fe0e8', emissive: '#1fb7c4', emissiveIntensity: 0.9, roughness: 0.2, clearcoat: 1, transparent: true, opacity: 0.92 }));
+for (const s of [-1, 1]) { add(blob, new THREE.SphereGeometry(0.16, 24, 16), mat('#ffffff', { clearcoat: 1 }), [s * 0.3, 0.2, 0.78]); add(blob, new THREE.SphereGeometry(0.08, 16, 12), mat('#10202c'), [s * 0.3, 0.17, 0.92]);
+  add(blob, rbox(0.3, 0.06, 0.06, 0.02), mat('#10202c'), [s * 0.3, 0.42, 0.82], [0, 0, s * -0.35]); }
+add(blob, new THREE.TorusGeometry(0.12, 0.03, 8, 24, Math.PI), mat('#10202c'), [0, -0.22, 0.86]);
+// field bands sweeping through the cheese (the wave)
+const bands = []; for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(PAL.cyan).multiplyScalar(0.8), transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); m.position.set(60, 0, 1.2); scene.add(m); bands.push(m); }
+
+// ================= timeline =================
+const t_doorOpen = 0.0, t_clonk = T(1, 'pizza') + 0.35;
+const t_fire = T(4, 'fire'), t_onfire = T(5, 'fire'), t_out = S(6) - 0.05;
+const t_lights = T(6, 'smarter');
+const t_magnet = T(9, 'magnet'), t_copper = T(9, 'copper'), t_hum = T(9, 'hums');
+const t_waves = T(10, 'everywhere'), t_cat = T(11, 'cat'), t_radio = T(11, 'radio'), t_street = T(11, 'street');
+const t_box = T(12, 'metal'), t_bounce = S(13);
+const t_cant = S(14), t_window = T(15, 'window'), t_escape = T(15, 'escape'), t_net = T(16, 'net'), t_macroNet = T(16, 'smaller'), t_fat = T(17, 'fat');
+const t_cheese = S(18), t_grab = T(19, 'grab'), t_billions = S(20), t_heat = T(21, 'heat');
+const t_problem = S(22), t_lava = T(23, 'lava'), t_frozen = T(24, 'frozen'), t_spots = S(25);
+const t_spin = T(26, 'spin'), t_ding = S(28), t_congrats = S(29), t_wifi = T(30, 'wi'), t_lag = T(31, 'lags'), t_popcorn = T(31, 'popcorn');
+const panelT = { floor: t_box - 0.2, left: t_box - 0.05, right: t_box + 0.08, back: t_box + 0.2, top: t_box + 0.34, front: t_box + 0.5 };
+const panelFrom = { floor: [0, -0.6, 0.6], left: [-1.2, 0.3, 0.2], right: [1.2, 0.3, 0.2], back: [0, 0.4, -1.0], top: [0, 1.4, 0], front: [0, 0.2, 1.4] };
+
+// camera: [time, pos, target, fov]  (glides with smootherstep; cut = jump)
+const C = [];
+const shot = (t, pos, tgt, fov = 40, cut = false) => C.push({ t, pos, tgt, fov, cut });
+shot(0, [-0.92, 1.12, 0.95], [-1.25, 0.95, -0.3], 38);
+shot(S(1) - 0.3, [-0.88, 1.15, 0.9], [-1.2, 0.97, -0.3], 38);
+shot(t_clonk - 0.25, [0.0, 1.22, 0.62], [0.0, 0.95, -0.3], 40);
+shot(S(3) + 0.4, [0.05, 1.24, 0.72], [0.05, 0.96, -0.3], 38);
+shot(t_fire - 0.2, [0.32, 1.25, 1.05], [0.28, 1.05, -0.3], 40);
+shot(S(5), [0.25, 1.4, 1.45], [0.25, 1.15, -0.3], 42);
+shot(t_out, [0.25, 1.42, 1.5], [0.25, 1.15, -0.3], 42);
+shot(t_lights + 0.1, [1.15, 1.6, 3.4], [-0.2, 1.25, -0.4], 44);
+shot(S(8), [0.3, 1.45, 2.4], [0.2, 1.2, -0.4], 40);
+shot(t_magnet - 0.3, [0.5, 1.2, 0.85], [0.36, 1.12, -0.32], 38);
+shot(t_hum + 0.2, [0.52, 1.18, 0.75], [0.36, 1.06, -0.32], 38);
+shot(t_waves - 0.1, [0.3, 1.45, 2.3], [0.3, 1.25, -0.4], 42);
+shot(t_cat - 0.15, [1.18, 1.15, 0.55], [1.4, 1.0, -0.35], 40, true);
+shot(t_radio - 0.15, [-0.38, 1.12, 0.55], [-0.6, 0.98, -0.45], 40, true);
+shot(t_street - 0.15, [0.7, 1.45, 1.0], [0.75, 1.55, -1.5], 40, true);
+shot(S(12) - 0.05, [0.3, 1.32, 1.45], [0.14, 1.05, -0.3], 40, true);
+shot(t_bounce + 0.2, [0.25, 1.28, 1.15], [0.14, 1.05, -0.3], 40);
+shot(t_cant, [0.15, 1.12, 1.0], [0.1, 1.06, -0.3], 40);
+shot(t_net, [0.12, 1.1, 0.9], [0.1, 1.06, -0.3], 38);
+shot(t_macroNet - 0.1, [31.6, 0.6, 5.2], [30, 0, 0.6], 40, true);
+shot(S(17) + 0.4, [31.9, 0.7, 5.6], [30, 0, 0.6], 40);
+shot(t_cheese - 0.1, [60.0, 0.0, 7.5], [60, 0, 0], 40, true);
+shot(t_heat, [60.0, 0.0, 5.6], [60, 0.2, 0], 40);
+shot(t_problem - 0.1, [0.05, 1.62, 0.25], [0.05, 0.95, -0.3], 38, true);
+shot(t_spots, [0.05, 1.55, 0.12], [0.05, 0.94, -0.3], 36);
+shot(t_spin + 0.3, [0.1, 1.58, 0.18], [0.05, 0.94, -0.3], 36);
+shot(t_ding - 0.1, [0.15, 1.15, 1.15], [0.12, 1.05, -0.3], 40, true);
+shot(t_congrats + 0.2, [1.1, 1.55, 3.2], [-0.1, 1.2, -0.4], 44);
+shot(t_wifi - 0.1, [1.25, 1.78, 0.55], [1.5, 1.66, -0.55], 40);
+shot(t_lag - 0.25, [0.92, 1.06, 0.3], [1.0, 0.99, -0.12], 36, true);
+shot(DUR, [0.9, 1.08, 0.38], [1.0, 0.99, -0.12], 34);
+function camAt(t) {
+  let i = 0; while (i < C.length - 1 && t >= C[i + 1].t) i++;
+  const a = C[i], b = C[i + 1];
+  if (!b) return a;
+  if (b.cut) return a;   // hold until the cut
+  // glide over the first 70% of the interval (min 0.35 s, max 1.6 s), then hold with a slow drift
+  const dur = Math.min(1.6, Math.max(0.35, (b.t - a.t) * 0.7));
+  return null;
+}
+// a smoother formulation: each shot glides from the previous shot's pose over 'dur' starting at its own time
+function camPose(t) {
+  let i = 0; while (i < C.length - 1 && t >= C[i + 1].t) i++;
+  const cur = C[i], prev = C[i - 1];
+  const dur = cur.cut || !prev ? 0 : Math.min(1.4, Math.max(0.35, (C[i + 1] ? C[i + 1].t - cur.t : 2) * 0.6));
+  const u = dur ? smooth((t - cur.t) / dur) : 1;
+  const from = prev && !cur.cut ? prevEnd(i) : cur;
+  const pos = cur.pos.map((v, k) => lerp(from.pos[k], v, u)), tgt = cur.tgt.map((v, k) => lerp(from.tgt[k], v, u));
+  // slow drift so the frame is never frozen
+  const dt = t - cur.t; pos[0] += Math.sin(dt * 0.35) * 0.012; pos[1] += Math.sin(dt * 0.27 + 1) * 0.008;
+  return { pos, tgt, fov: lerp(from.fov, cur.fov, u) };
+}
+const prevEnd = (i) => C[i - 1];
+
+// ================= sound cues (sfx_kit.py reads these) =================
+const EV = [];
+const ev = (t, kind, gain = 1) => EV.push({ t: +t.toFixed(3), kind, gain });
+ev(0.0, 'fridge_open'); ev(0.05, 'fridge_hum', 0.8); ev(t_clonk, 'clonk'); ev(t_clonk + 0.22, 'clonk', 0.4);
+ev(S(3) + 0.3, 'fridge_close', 0.7);
+ev(t_fire - 0.5, 'sticks'); ev(t_fire - 0.05, 'match'); ev(t_fire + 0.1, 'whoosh_fire'); ev(t_fire + 0.2, 'fire_loop:' + (t_out - t_fire - 0.2).toFixed(2));
+ev(t_onfire - 0.1, 'alarm:' + (t_out - t_onfire + 0.2).toFixed(2)); ev(t_onfire + 0.35, 'sprinkler:' + (t_out - t_onfire).toFixed(2)); ev(t_out, 'hiss_out');
+ev(t_lights, 'switch'); ev(t_lights + 0.18, 'switch', 0.8); ev(t_lights + 0.36, 'switch', 0.7); ev(t_lights + 0.4, 'room_tone_up');
+ev(t_magnet - 0.05, 'snap'); ev(t_copper - 0.05, 'snap', 1.1); ev(t_hum - 0.25, 'snap_big'); ev(t_hum, 'hum_up');
+ev(t_waves - 0.2, 'wave_burst'); for (let i = 0; i < 5; i++) ev(t_waves + i * 0.35, 'whoom', 0.6 - i * 0.08);
+ev(t_cat, 'cat_yowl'); ev(t_radio, 'radio_static'); ev(t_street, 'whoosh_out'); ev(t_street + 0.25, 'car_alarm', 0.5);
+for (const k in panelT) ev(panelT[k] + 0.32, 'clank', k === 'front' ? 1.1 : 0.85);
+ev(t_bounce, 'pinball'); ev(t_cant, 'thud_blind', 0.6);
+ev(t_window - 0.1, 'swoosh'); ev(t_window + 0.25, 'door_close'); ev(t_escape, 'whoosh_out', 0.8);
+ev(t_net - 0.05, 'net_drop'); ev(t_macroNet + 0.6, 'boing'); ev(t_fat + 0.1, 'boing', 1.1); ev(t_fat + 0.55, 'grumble', 0.8);
+ev(t_cheese - 0.1, 'zoom_in'); ev(t_grab, 'wobble_loop:' + (t_problem - t_grab - 0.2).toFixed(2)); ev(t_billions, 'riser:1.4'); ev(t_heat, 'sizzle_hit');
+ev(t_problem - 0.1, 'zoom_out'); ev(t_lava, 'lava_sizzle'); ev(t_frozen, 'ice_crack'); ev(t_spots, 'sad_trombone', 0.6);
+ev(t_spin - 0.05, 'turntable_start'); ev(t_spin, 'oven_hum:' + (t_ding - t_spin).toFixed(2));
+ev(t_ding, 'ding'); ev(t_ding + 0.35, 'door_pop'); ev(t_congrats + 0.4, 'bite'); ev(t_congrats + 0.75, 'yum', 0.6);
+ev(t_wifi, 'glitch'); ev(t_lag, 'buffer_blip'); ev(t_popcorn + 0.1, 'popcorn:1.6');
+window.events = () => EV;
+// music sections (story_music.py)
+window.sections = () => [
+  { t: 0, mood: 'sneaky' }, { t: t_fire - 0.1, mood: 'chaos' }, { t: t_out, mood: 'stop' }, { t: t_lights + 0.3, mood: 'build' },
+  { t: t_waves - 0.2, mood: 'tension' }, { t: S(12), mood: 'build' }, { t: t_cant, mood: 'tension' }, { t: t_cheese, mood: 'wonder' },
+  { t: t_problem, mood: 'tension' }, { t: t_spin, mood: 'build' }, { t: t_ding - 0.15, mood: 'stop' }, { t: t_ding + 0.4, mood: 'happy' }, { t: DUR - 0.3, mood: 'end' } ];
+
+// ================= per-frame =================
+const tmp = new THREE.Vector3();
+const flick = (t, at) => (t < at ? 0 : t < at + 0.06 ? 1 : t < at + 0.12 ? 0.2 : t < at + 0.2 ? 1 : 1);   // light-switch flicker
+function pose(t) {
+  // ---- lighting state ----
+  const lit = clamp(flick(t, t_lights) * 0.5 + flick(t, t_lights + 0.18) * 0.3 + flick(t, t_lights + 0.36) * 0.2);
+  const fireOn = t >= t_fire && t < t_out ? clamp((t - t_fire) / 0.3) : 0;
+  const fridgeOpen = t < S(3) + 0.3 ? lerp(0.55, 1, smooth(t / 0.6)) : 1 - smooth((t - S(3) - 0.3) / 0.4);
+  key.color.set(lit > 0 ? '#ffe2bf' : '#8fa8ff').lerp(new THREE.Color('#ffe2bf'), lit); key.intensity = lerp(0.3, 0.85, lit);
+  key.position.set(1.8, 3.2, 3.0); key.target.position.set(0.2, 0.9, -0.3); key.target.updateMatrixWorld();
+  fill.color.set('#9db4ff'); fill.intensity = lerp(0.18, 0.35, lit); fill.position.set(-2, 2, 3);
+  rim.color.set('#7f9cff'); rim.intensity = 0.6; rim.position.set(0.8, 2.2, -3);
+  hemi.color.set('#ffe9cf'); hemi.groundColor.set('#2b2230'); hemi.intensity = lerp(0.1, 0.32, lit);
+  scene.environmentIntensity = lerp(0.1, 0.38, lit);
+  lampLight.intensity = 1.7 * lit; bulb.material.color.set('#fff1c9').multiplyScalar(lerp(0.15, 3.0, lit));
+  strip.material.color.set('#fff0c8').multiplyScalar(lerp(0.05, 1.6, lit));
+  frLight.intensity = 6 * fridgeOpen; Wd.frInner.material.color.set('#fff6e0').multiplyScalar(lerp(0.15, 1.2, fridgeOpen));
+  frDoor.rotation.y = -1.75 * fridgeOpen;
+  // fire
+  fire.root.visible = t >= t_fire - 0.6 && t < t_out + 0.1;
+  fire.sticks.forEach((s, i) => { const k = easeOut(ramp(t, t_fire - 0.6 + i * 0.08, t_fire - 0.4 + i * 0.08)); s.scale.setScalar(Math.max(0.001, k)); });
+  fire.flames.forEach((f, i) => { const n = noise1(t * 6 + i * 3.1, i); f.scale.set(fireOn * (1 - i * 0.08) * (0.9 + 0.2 * n), fireOn * (1.1 + 0.4 * noise1(t * 8 + i, i + 5) + i * 0.15), fireOn * (1 - i * 0.08));
+    f.position.set(Math.sin(i * 2.3) * 0.02, 0.1 + i * 0.012, Math.cos(i * 2.3) * 0.02); f.rotation.y = i; f.visible = fireOn > 0.01; });
+  fire.light.intensity = fireOn * (3.5 + 1.2 * noise1(t * 10, 3));
+  embers.u.uOn.value = fireOn; smoke.u.uOn.value = t >= t_onfire - 0.3 && t < t_out + 0.6 ? clamp((t - t_onfire + 0.3) / 0.5) * (t > t_out ? 1 - (t - t_out) / 0.6 : 1) : 0;
+  rain.u.uOn.value = t >= t_onfire + 0.4 && t < t_out + 0.25 ? 1 : 0; puff.u.uT0.value = t_out;
+  alarmLed.material.color.set('#ff2d2d').multiplyScalar(t >= t_onfire - 0.1 && t < t_out + 0.2 ? (Math.floor(t * 4) % 2 ? 6 : 0.4) : 0.2);
+  // ---- pizza (fridge -> counter, frozen) ----
+  const flyU = smooth(ramp(t, S(1) - 0.35, t_clonk));
+  const from = new THREE.Vector3(-1.25, 0.94, -0.3);
+  const pz = from.clone().lerp(PIZZA, flyU); pz.y += Math.sin(Math.PI * flyU) * 0.25;
+  const land = t > t_clonk ? Math.exp(-(t - t_clonk) * 7) * Math.sin((t - t_clonk) * 30) * 0.03 : 0;
+  const onTurn = t > t_box ? 0.03 : 0;
+  pizza.root.position.set(pz.x, pz.y + Math.abs(land) + onTurn, pz.z);
+  pizza.root.rotation.set(flyU < 1 ? (1 - flyU) * 2.2 : 0, 0, 0);
+  const spinA = t > t_spin ? (t - t_spin) * 1.6 : 0; pizza.root.rotation.y = spinA; oven.turn.rotation.y = spinA;
+  pizza.frost.material.opacity = 1 - smooth(ramp(t, t_grab, t_heat + 0.3)) * 1.0;
+  pizza.frost.visible = pizza.frost.material.opacity > 0.01;
+  const spotsOn = smooth(ramp(t, t_lava - 0.1, t_lava + 0.3)) * (1 - smooth(ramp(t, t_spin + 0.4, S(27, 't1'))));
+  pizza.top.emissiveIntensity = 1.6 * spotsOn + 0.25 * smooth(ramp(t, t_spin + 0.4, S(27, 't1')));
+  pizza.top.emissiveMap = spotsOn > 0.02 || t < t_spin ? pizza.top.emissiveMap : pizza.top.emissiveMap;
+  pizza.cold.material.opacity = smooth(ramp(t, t_frozen - 0.1, t_frozen + 0.3)) * (1 - smooth(ramp(t, t_spin + 0.4, S(27, 't1'))));
+  steam.u.uO.value.set(PIZZA.x, PIZZA.y + 0.05, PIZZA.z); steam.u.uOn.value = smooth(ramp(t, t_lava, t_lava + 0.4)) * (t < t_congrats + 1 ? 1 : 0);
+  // ---- gadget: three parts fly in and snap ----
+  const gIn = (at) => easeOut(ramp(t, at - 0.35, at));
+  const lift = 0.22 * (1 - smooth(ramp(t, t_hum + 0.1, t_hum + 0.6)));
+  gadget.root.visible = t > t_magnet - 0.4;
+  gadget.root.position.set(GADGET.x, GADGET.y + lift, GADGET.z);
+  const m1 = gIn(t_magnet), m2 = gIn(t_copper), m3 = gIn(t_hum - 0.25);
+  gadget.magnetB.position.set(lerp(-0.9, 0, m1), 0.015 + (1 - m1) * 0.4, 0); gadget.magnetB.scale.setScalar(Math.max(0.001, m1));
+  gadget.copper.position.set(lerp(0.9, 0, m2), 0.07 + (1 - m2) * 0.3, 0); gadget.copper.scale.setScalar(Math.max(0.001, m2));
+  gadget.magnetA.position.set(0, 0.135 + (1 - m3) * 0.6, 0); gadget.magnetA.scale.setScalar(Math.max(0.001, m3));
+  gadget.wire.visible = gadget.antenna.visible = m3 > 0.9;
+  const hum = t > t_hum ? 1 : 0;
+  gadget.core.material.color.set(PAL.cyan).multiplyScalar(hum ? 3 + 1.5 * Math.sin(t * 40) : 0.2);
+  gadget.root.rotation.z = hum && t < t_box ? Math.sin(t * 90) * 0.01 : 0;
+  // ---- waves everywhere ----
+  rings.forEach((r) => (r.visible = false));
+  const core = new THREE.Vector3(GADGET.x, GADGET.y + 0.2 + lift, GADGET.z);
+  if (t > t_waves - 0.2 && t < t_box + 0.2) {
+    for (let i = 0; i < 10; i++) { const born = t_waves - 0.2 + i * 0.33, age = t - born; if (age < 0 || age > 3.0) continue; const r = rings[i]; r.visible = true;
+      const rad = 0.05 + age * 1.3; r.scale.setScalar(rad); r.position.copy(core); r.rotation.set(Math.PI / 2 + (i % 3 - 1) * 0.5, (i % 2) * 0.8, 0); r.material.opacity = 1 - age / 3.0; }
+  }
+  // ---- cat, radio ----
+  const catHit = t > t_cat - 0.05 && t < t_cat + 2.2 ? Math.exp(-(t - t_cat) * 1.5) : 0;
+  cat.fur.forEach((f, i) => f.scale.setScalar(Math.max(0.001, catHit * (0.8 + 0.4 * hash(i)))));
+  cat.body.position.y = catHit * 0.06 * Math.abs(Math.sin((t - t_cat) * 14));
+  cat.head.rotation.z = lerp(-0.15, 0.25, catHit); cat.tail.rotation.z = 0.6 + Math.sin(t * 2) * 0.1 + catHit * 0.8;
+  const breathe = 1 + Math.sin(t * 2.2) * 0.02; cat.body.scale.set(1, breathe, 1);
+  const eyesOpen = catHit > 0.05 || t > t_congrats;
+  cat.head.children.filter((o) => o.name.startsWith('eye')).forEach((e) => e.scale.set(1, eyesOpen ? 2.6 : 1, 1));
+  const rHit = t > t_radio - 0.05 && t < t_radio + 1.6 ? Math.exp(-(t - t_radio) * 2) : 0;
+  radio.root.rotation.z = rHit * Math.sin(t * 60) * 0.06; radio.root.position.y = 0.9 + rHit * Math.abs(Math.sin(t * 30)) * 0.02; radio.ant.rotation.z = -0.35 + rHit * Math.sin(t * 45) * 0.4;
+  // ---- the box ----
+  const lid = win(t, t_problem - 0.35, t_ding - 0.15, 0.3, 0.3);
+  const pk = (k) => easeOut(ramp(t, panelT[k], panelT[k] + 0.32));
+  oven.root.visible = t > t_box - 0.6;
+  for (const k of ['floor', 'left', 'right', 'back', 'top']) { const p = oven.panels[k], u = pk(k), o = panelFrom[k];
+    if (!p.userData.base) p.userData.base = p.position.clone();
+    p.position.set(p.userData.base.x + o[0] * (1 - u), p.userData.base.y + o[1] * (1 - u) + (k === 'top' ? lid * 0.9 : 0), p.userData.base.z + o[2] * (1 - u)); p.visible = u > 0.001; }
+  oven.bay.visible = t > panelT.back;
+  const fu = pk('front'), frontOff = smooth(ramp(t, t_window - 0.45, t_window - 0.1));
+  front.visible = fu > 0.001 && frontOff < 0.999; front.position.set(0, 0.2 * (1 - fu) + frontOff * 0.5, 1.4 * (1 - fu) + frontOff * 0.6); front.rotation.x = frontOff * -1.2;
+  // x-ray while the waves bounce inside, and while we look at the pizza inside
+  const xray = win(t, t_bounce - 0.1, t_cant, 0.25, 0.3);
+  steel.transparent = xray > 0.01; steel.opacity = 1 - 0.82 * xray; steel.depthWrite = xray < 0.5;
+  // door: swings in after the front plate flies off, net drops on later, opens on the ding
+  const doorIn = smooth(ramp(t, t_window - 0.15, t_window + 0.3)), dingOpen = smooth(ramp(t, t_ding + 0.3, t_ding + 0.75)) * (1 - smooth(ramp(t, DUR - 1.0, DUR - 0.4)));
+  oven.door.visible = t > t_window - 0.2; oven.door.rotation.y = lerp(-1.9, 0, doorIn) - 1.3 * dingOpen;
+  oven.ctrl.visible = t > t_window - 0.2; oven.ctrl.scale.setScalar(Math.max(0.001, doorIn));
+  const netU = smooth(ramp(t, t_net - 0.1, t_net + 0.25));
+  oven.net.visible = netU > 0.001; oven.net.position.y = (1 - netU) * 0.35; oven.net.material.opacity = netU;
+  oven.turn.visible = t > t_box + 0.4; oven.turn.scale.setScalar(Math.max(0.001, easeOut(ramp(t, t_box + 0.4, t_box + 0.7))));
+  const ovenOn = t > t_problem - 0.2 && t < t_ding ? 1 : 0;
+  oven.light.intensity = ovenOn * 1.6 + (t > t_ding ? 0.8 : 0);
+  oven.display.material.color.set('#3dff9a').multiplyScalar(t > t_window ? (t > t_ding && t < t_ding + 1 ? (Math.floor(t * 6) % 2 ? 3 : 0.3) : 1.6) : 0.1);
+  // bouncing pulses inside the closed box
+  pulses.forEach((p, i) => { const on = t > t_bounce - 0.1 && t < t_cant + 0.2; p.visible = on; if (!on) return;
+    const u = (t * (1.3 + i * 0.25) + i * 0.37) % 2, x = u < 1 ? u : 2 - u, v = (t * (0.9 + i * 0.3) + i * 0.6) % 2, y = v < 1 ? v : 2 - v, w2 = ((t * 0.7 + i * 0.5) % 2), z = w2 < 1 ? w2 : 2 - w2;
+    p.position.set(SPOT.x - 0.27 + x * 0.38, 0.93 + y * 0.27, SPOT.z - 0.18 + z * 0.36); });
+  // escape: rings rush out through the plain glass door, toward the camera
+  if (t > t_escape - 0.3 && t < t_net + 0.1) for (let i = 0; i < 4; i++) { const age = t - (t_escape - 0.3 + i * 0.22); if (age < 0 || age > 1.2) continue; const r = rings[10 + i]; r.visible = true;
+    r.scale.setScalar(0.12 + age * 0.5); r.position.set(SPOT.x - 0.07, 1.06, SPOT.z + 0.23 + age * 0.9); r.rotation.set(0, 0, 0); r.material.opacity = 1 - age / 1.2; }
+  // ---- macro: the fat wave at the net ----
+  const bt = t - t_macroNet;
+  const hit1 = t_macroNet + 0.6, hit2 = t_fat + 0.1;
+  const zOf = (tt) => { if (tt < hit1) return lerp(4.5, 0.9, smooth(ramp(tt, t_macroNet, hit1))); if (tt < hit2) { const k = (tt - hit1) / (hit2 - hit1); return 0.9 + Math.sin(k * Math.PI) * 1.4; } return 0.9 + Math.min(3, (tt - hit2) * 3.2) * Math.min(1, (tt - hit2) * 4); };
+  blob.position.set(30, 0, zOf(t));
+  const squash = Math.max(Math.exp(-Math.abs(t - hit1) * 12), Math.exp(-Math.abs(t - hit2) * 12));
+  blob.scale.set(1 + 0.25 * squash, 1 + 0.25 * squash, 1 - 0.4 * squash);
+  blob.rotation.z = Math.sin(bt * 3) * 0.06;
+  // ---- macro: water buddies in the cheese ----
+  const field = smooth(ramp(t, t_grab - 0.2, t_grab + 0.3)), fast = smooth(ramp(t, t_billions - 0.1, t_billions + 0.6)), heatK = smooth(ramp(t, t_heat - 0.6, t_heat + 0.4));
+  cheese.oM.emissiveIntensity = heatK * 1.4; cheese.oM.color.set('#8fd3ff').lerp(new THREE.Color('#ffb08a'), heatK);
+  const flipHz = lerp(0.9, 7.5, fast);
+  cheese.buddies.forEach(({ b, spin, seed }) => { const ph = hash(seed) * 6.28;
+    spin.rotation.z = field * Math.sin(t * flipHz * Math.PI * 2 * 0.5 + ph * 0.15) * 1.25 + (1 - field) * Math.sin(t * 0.6 + ph) * 0.15;
+    b.position.x += 0; spin.position.set(heatK * noise1(t * 9 + seed, seed) * 0.12, heatK * noise1(t * 9 + seed, seed + 3) * 0.12, 0);
+    const bl = (t * 0.4 + hash(seed + 5) * 4) % 4; spin.children[spin.children.length - 1].scale.y = 1; });
+  bands.forEach((m, i) => { m.material.opacity = field * 0.22 * (t < t_problem ? 1 : 0); m.position.x = 60 + ((t * lerp(1.2, 6, fast) + i * 2.4) % 7.2) - 3.6; });
+  cheeseSteam.u.uOn.value = heatK * (t < t_problem ? 1 : 0);
+  // ---- router + phone (Wi-Fi jam) ----
+  const jam = t > t_wifi - 0.1 && t > t_spin ? 1 : 0;
+  router.arcs.forEach((a, i) => { const k = (t * 2 - i * 0.33) % 1; a.material.opacity = jam ? (Math.floor(t * 12 + i) % 3 === 0 ? 0.9 : 0.1) : 0.15 + 0.7 * Math.max(0, Math.sin(k * Math.PI));
+    a.material.color.set(jam && Math.floor(t * 8 + i) % 2 ? '#ff4d6d' : PAL.cyan).multiplyScalar(2.5); });
+  router.leds.forEach((l, i) => l.material.color.set(jam && i === 2 ? (Math.floor(t * 10) % 2 ? '#ff3b3b' : '#401010') : '#3dff9a').multiplyScalar(2));
+  phone.draw(t, smooth(ramp(t, t_lag - 0.3, t_lag + 0.2)));
+  // end: lights dim back to the dark kitchen so the loop restarts cleanly
+  const endDim = smooth(ramp(t, DUR - 0.7, DUR));
+  lampLight.intensity *= 1 - endDim; key.intensity = lerp(key.intensity, 0.35, endDim); scene.environmentIntensity = lerp(scene.environmentIntensity, 0.12, endDim);
+  return { lit, fireOn };
+}
+
+// ================= render =================
+await fontsReady();
+window.renderFrame = (f) => {
+  const t = f / FPS;
+  const L = pose(t);
+  const c = camPose(t);
+  const shake = (t > t_clonk && t < t_clonk + 0.25 ? 0.006 : 0) + (t > t_fire && t < t_fire + 0.3 ? 0.008 : 0) + (t > panelT.front + 0.3 && t < panelT.front + 0.5 ? 0.005 : 0);
+  st.setCamera(c.pos, c.tgt, c.fov, shake, t);
+  for (const p of [embers, smoke, rain, steam, puff, cheeseSteam]) p.update(t, camera, renderer);
+  st.passes.grade.uniforms.flash.value = (t > t_ding && t < t_ding + 0.25 ? 0.25 * (1 - (t - t_ding) / 0.25) : 0) + (t > t_fire && t < t_fire + 0.2 ? 0.2 * (1 - (t - t_fire) / 0.2) : 0);
+  st.render(f);
+  // ---- UI ----
+  const g = ui.g;
+  // hook title
+  const hk = win(t, 0.0, S(3, 't1') + 0.2, 0.01, 0.3);
+  if (hk > 0) {
+    ui.spans([{ t: '2 A.M.', c: PAL.orange, at: S(0) - 0.02 }], 540, 330, { size: 150, t, a: hk, stroke: 16 });
+    ui.spans([{ t: 'NO ', c: PAL.white, at: S(2) }, { t: 'OVEN.', c: PAL.white, at: T(2, 'oven') }], 540, 470, { size: 96, t, a: hk, stroke: 14 });
+  }
+  const end = win(t, t_congrats - 0.05, t_wifi - 0.1, 0.15, 0.25);
+  if (end > 0) { ui.spans([{ t: 'YOU INVENTED', c: PAL.white, at: t_congrats }], 540, 330, { size: 78, t, a: end, stroke: 13 });
+    ui.spans([{ t: 'THE MICROWAVE', c: PAL.orange, at: T(29, 'microwave') }], 540, 440, { size: 96, t, a: end, stroke: 15 }); }
+  ui.captions(words.filter((w) => w.s > 3), t, { y: 1400, from: S(4) - 0.05 });
+  return true;
+};
+window.duration = DUR; window.frames = Math.ceil(DUR * FPS);
+window.T = { t_clonk, t_fire, t_out, t_lights, t_hum, t_waves, t_box, t_window, t_net, t_macroNet, t_cheese, t_problem, t_spin, t_ding, t_wifi, t_lag };
+window.done = true;
+</script></body></html>

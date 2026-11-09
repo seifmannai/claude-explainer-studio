@@ -1,0 +1,42 @@
+# text | speed | pause after (s). Blank line = scene break. Voice: michael*0.4 + puck*0.6
+Two a.m.|0.95|0.25
+Frozen pizza.|1.0|0.25
+No oven.|0.95|0.32
+So... you have to invent one.|1.04|0.58
+
+First idea: fire!|1.12|0.65
+Okay. The kitchen is on fire.|0.9|0.65
+
+Fine. You get smarter.|1.0|0.36
+What if you heat the food... without fire?|1.0|0.29
+With invisible waves.|0.92|0.36
+You snap together a magnet, a copper block... and it hums.|1.02|0.5
+
+But wait. The waves go everywhere.|1.05|0.29
+The cat. The radio. The whole street.|1.1|0.5
+
+So you trap them. In a metal box.|1.0|0.29
+Now they just bounce around inside.|1.04|0.5
+
+But now you can't see your pizza.|1.02|0.25
+Add a window, and the waves escape...|1.0|0.25
+unless you cover it with a net, with holes way smaller than the waves.|1.04|0.25
+They're too fat to squeeze through.|0.98|0.5
+
+Now look inside the cheese.|0.95|0.29
+The waves grab tiny bits of water, and flip them back and forth.|1.02|0.25
+Billions of times a second.|1.08|0.32
+All that jiggling? That's heat.|0.96|0.58
+
+One problem.|0.95|0.29
+The edges are lava...|1.0|0.25
+and the middle is still frozen.|0.95|0.36
+Some spots get all the waves. Some get nothing.|1.02|0.5
+
+Easy fix. Make the pizza spin.|1.02|0.29
+Now every bite takes a turn in the hot spots.|1.02|0.43
+
+Ding!|1.1|0.43
+Congrats. You just invented the microwave.|0.98|0.43
+And those waves? Almost the same ones your Wi-Fi uses.|1.02|0.25
+That's why your video lags... when someone makes popcorn.|0.98|0.72
