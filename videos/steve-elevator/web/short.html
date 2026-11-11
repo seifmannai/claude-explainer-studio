@@ -1,0 +1,358 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Steve & the elevator: full Short (1080x1920, 24 fps). Ray-marched + path traced on the GPU, 8 samples + denoiser.
+     Contract for kit/local/local_render.mjs: canvas#c, window.done, window.frames, async window.renderFrame(f). -->
+<style>
+@font-face{font-family:IB;src:url(../../../kit/fonts/Inter-Black.otf)}
+@font-face{font-family:IXB;src:url(../../../kit/fonts/Inter-ExtraBold.otf)}
+html,body{margin:0;background:#000;overflow:hidden}
+#c{display:block;width:1080px;height:1920px}
+</style></head><body><canvas id="c"></canvas>
+<script src="scene.glsl.js"></script>
+<script>
+const TEST = null;           // e.g. [3.0, 16.5] renders only those moments (shot test)
+const FPS = 24, SPP = 8, RW = 1080, RH = 1920;
+
+// ------------------------------------------------------------------ timeline helpers
+const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const sm = (x) => { x = cl(x); return x * x * (3 - 2 * x); };
+const ramp = (t, a, b) => sm((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const L3 = (a, b, u) => a.map((v, i) => lerp(v, b[i], u));
+const F = (n) => 3.6 * n + 0.16;                          // top of floor n
+const easeIn = (x) => cl(x) * cl(x);
+
+// car height (floor top) through the film
+function carY(t) {
+  if (t < 10.3) return F(0);
+  if (t < 16.4) return lerp(F(0), 11.6, ramp(t, 10.3, 16.2));                  // crank ride up
+  if (t < 19.72) return Math.max(-1.05, 11.6 - 0.5 * 6.0 * Math.max(0, t - 16.4) ** 2);   // snap + fall
+  if (t < 30.9) return 8.0 - 0.15 * ramp(t, 28.0, 28.45);                       // brake demo
+  if (t < 41.8) return 8.0 - 0.1 * ramp(t, 37.3, 37.9);                         // Otis demo
+  if (t < 44.96) return 7.9;
+  if (t < 51.37) return t < 47.34 ? lerp(6.0, F(3) - 0.3, ramp(t, 45.2, 47.0)) : lerp(F(3) - 0.3, 20, ramp(t, 48.9, 50.9));
+  if (t < 62.8) return t < 58.4 ? 16 : lerp(16, 21, ramp(t, 58.4, 60.4));
+  if (t < 68.93) return lerp(21, 33.3, easeIn((t - 63.9) / 0.9));             // rockets up
+  if (t < 79.24) return 30;
+  if (t < 86.5) return F(5);
+  if (t < 98.98) return lerp(F(5), F(6), ramp(t, 86.5, 88.0));
+  if (t < 108.8) return 180;
+  if (t < 116.66) { const u = t - 108.8; return 180 + 1.6 * Math.sin(u * 7.5) * Math.exp(-u * (t > 112.6 ? 1.6 : 0.25)); }   // bungee, damped by carbon
+  return F(99);
+}
+
+// every animated value at time t
+function state(t) {
+  const s = {
+    carY: carY(t), carVis: 1, ropeVis: 1, ropeSnap: 0, wheelVis: 1, wheelAng: 0, teeth: 1, clawVis: 1, clawOut: 0, spark: 0,
+    steve: null, arms: 0, crouch: 0, slump: 0, hairUp: 0, hairLag: 0, coffee: 1, bag: 0, cwVis: 1, cwY: 2,
+    motorVis: 1, motorSc: 0.35, govVis: 1, govAng: t * 6, govOut: 0, springVis: 1, doorOpen: 0, doorY: F(6), doorVis: 0, beam: 0,
+    carbon: 0, keys: 0, ropeCut: 0, steveVis: 1, roof: 36, yaw: -0.2, rails: 1, pocket: 0, walk: 0, sepia: 0, fade: 0 };
+  // which inventions exist yet (each appears on its word, then stays)
+  if (t < 51.37 || (t >= 51.37 && t < 56.5)) { s.cwVis = t < 56.52 ? 0 : 1; }
+  if (t < 56.52) s.cwVis = 0; else s.cwVis = ramp(t, 56.52, 56.9);
+  s.cwY = t < 58.4 ? 22 : lerp(22, 17, ramp(t, 58.4, 60.4));
+  if (t >= 62.8 && t < 68.93) s.cwY = lerp(17, 4, easeIn((t - 63.9) / 0.9));
+  if (t >= 68.93) s.cwY = 6;
+  s.motorVis = t < 48.0 ? 0 : ramp(t, 48.0, 48.3);
+  s.motorSc = t < 60.67 ? 1.0 : lerp(1.0, 0.35, ramp(t, 60.67, 61.2));
+  s.govVis = t < 73.6 ? 0 : ramp(t, 73.6, 74.1);
+  s.springVis = t < 78.2 ? 0 : ramp(t, 78.2, 78.7);
+  s.teeth = t < 21.84 ? 0 : ramp(t, 21.84, 22.4);
+  s.clawVis = t < 23.92 ? 0 : ramp(t, 23.92, 24.3);
+  s.carbon = t < 112.54 ? 0 : ramp(t, 112.54, 113.3);
+  s.wheelVis = t < 7.66 ? 0 : ramp(t, 7.66, 7.95);
+  s.carVis = t < 8.74 ? 0 : ramp(t, 8.74, 9.0);
+  s.ropeVis = t < 7.08 ? 0 : ramp(t, 7.08, 7.6);
+  if (t >= 98.98) s.roof = lerp(36, 360, ramp(t, 99.2, 101.4));
+  if (t >= 116.66) s.roof = 360;
+  // the wheel turns with the car
+  s.wheelAng = -s.carY / 0.7;
+  // rope snaps (three times: the first lift, the brake demo, Otis)
+  const snap = (a, b) => t >= a && t < b;
+  if (snap(16.16, 19.72)) { s.ropeSnap = 1; s.ropeCut = 15.1 - 0.4 * ramp(t, 16.16, 16.8); }
+  if (snap(27.9, 30.9)) { s.ropeSnap = 1; s.ropeCut = 8.0 + 3.0; }
+  if (snap(34.6, 44.96)) { s.ropeSnap = 1; s.ropeCut = 11.0; }
+  // claws: out = biting
+  if (t >= 28.4 && t < 30.9) s.clawOut = ramp(t, 28.4, 28.66);
+  if (t >= 37.6 && t < 44.96) s.clawOut = ramp(t, 37.6, 37.9);
+  if (t >= 75.1 && t < 78.0) s.clawOut = ramp(t, 75.1, 75.32);
+  s.spark = Math.max(t >= 28.6 ? Math.exp(-(t - 28.6) * 1.5) * (t < 30.9 ? 1 : 0) : 0,
+                     t >= 37.9 && t < 41.8 ? Math.exp(-(t - 37.9) * 1.5) : 0,
+                     t >= 75.3 && t < 78.0 ? Math.exp(-(t - 75.3) * 1.8) : 0);
+  if (t >= 74.9 && t < 78.0) s.govOut = ramp(t, 74.9, 75.2);
+  // Steve: where is he?
+  const inCar = () => [0.0, s.carY, -0.55];
+  s.steve = inCar();
+  if (t < 8.74) { s.steve = [-2.3, F(0), -1.1]; s.yaw = -0.35; s.slump = ramp(t, 3.86, 4.4); }
+  if (t >= 8.74 && t < 16.16) { s.arms = 0; }
+  if (t >= 16.16 && t < 19.72) { s.arms = ramp(t, 16.2, 16.45); s.hairUp = s.arms; s.crouch = t > 18.45 ? 1 : 0; }
+  if (t >= 28.3 && t < 30.9) { s.arms = ramp(t, 28.3, 28.5); s.hairUp = s.arms; s.crouch = 0.4 * ramp(t, 28.5, 28.7); }
+  if (t >= 34.6 && t < 37.9) { s.arms = ramp(t, 34.6, 34.9); s.hairUp = s.arms; }
+  if (t >= 37.9 && t < 44.96) { s.arms = 1; s.hairUp = 1 - 0.5 * ramp(t, 39, 41); s.crouch = 0.4; }
+  if (t >= 44.96 && t < 51.37) { s.slump = t < 47.3 ? ramp(t, 45, 46) * 0.6 : 0; s.arms = t >= 48.9 ? 0.5 * ramp(t, 48.9, 49.3) : 0; }
+  if (t >= 58.4 && t < 62.8) { s.slump = t > 61.4 ? 0.35 : 0; }
+  if (t >= 63.6 && t < 68.93) { s.arms = ramp(t, 63.6, 63.9); s.hairUp = 1; s.crouch = 0.5 * ramp(t, 64.6, 64.9);
+    s.hairLag = t < 64.6 ? 0 : -0.9 * (1 - ramp(t, 67.4, 67.92)); }
+  if (t >= 75.1 && t < 78.0) { s.arms = ramp(t, 75.1, 75.3); s.hairUp = s.arms; s.crouch = 0.4; }
+  // doors: Steve steps out on floor 6 into an empty shaft
+  if (t >= 79.24 && t < 98.98) { s.doorVis = 1; s.doorY = F(6); }
+  if (t >= 79.24 && t < 84.9) {
+    s.doorOpen = ramp(t, 80.6, 81.2);
+    const x = lerp(-2.0, -0.4, ramp(t, 81.2, 82.4));
+    let y = F(6); if (t > 84.25) y = Math.max(F(5) + 2.58, F(6) - 0.5 * 9.8 * (t - 84.25) ** 2);
+    s.steve = [x, y, -0.8]; s.yaw = t < 82.6 ? -1.57 : lerp(-1.57, -0.25, ramp(t, 82.6, 82.9));
+    s.walk = t > 81.2 && t < 82.4 ? (t - 81.2) * 9 : 0; s.slump = 0; s.arms = t > 84.2 ? 1 : 0; s.hairUp = s.arms; s.coffee = 1;
+    s.crouch = t > 84.75 ? 1 : 0;
+  }
+  if (t >= 84.9 && t < 98.98) {
+    s.steve = inCar(); s.yaw = 1.2; s.coffee = 0; s.bag = 0.55;
+    s.doorOpen = t < 88.5 ? 0 : (t < 90.6 ? ramp(t, 88.5, 89.2) : (t < 94.0 ? lerp(1, 0.0, ramp(t, 90.9, 91.36)) : (t < 96.32 ? lerp(ramp(t, 94.0, 94.6), 0.35, ramp(t, 95.7, 96.1)) : lerp(0.35, 1, ramp(t, 96.32, 96.7)))));
+    if (t >= 91.36) s.bag = 0.18 + (t >= 94.0 ? 0.37 * ramp(t, 93.6, 93.9) : 0);   // a new baguette for the second try
+    s.beam = t < 94.8 ? 0 : ramp(t, 94.9, 95.5);
+    if (t > 91.4 && t < 94) { s.yaw = lerp(1.2, -0.3, ramp(t, 91.6, 92.0)); s.slump = 0.25; }
+  }
+  if (t >= 98.98 && t < 116.66) { s.coffee = 1; s.arms = t > 108.9 && t < 113.8 ? 1 : 0; s.hairUp = s.arms; s.slump = t < 101.5 ? 0.4 : 0; }
+  if (t >= 116.66) {
+    s.doorVis = 1; s.doorY = F(99); s.doorOpen = ramp(t, 117.0, 117.8); s.coffee = 1;
+    s.yaw = 0.6; s.pocket = t > 121.98 ? ramp(t, 121.98, 122.5) : 0;
+    s.keys = t >= 122.98 ? 1 : 0;
+    if (t > 123.9) s.slump = 0.55;
+    if (t >= 128.26) { const u = t - 128.26; s.steve = [lerp(-1.7, -4.0, u / 3), F(99), -1.0]; s.yaw = 1.57; s.walk = u * 8; s.slump = 1; s.pocket = 0; }
+  }
+  if (t >= 30.98 && t < 41.5) s.sepia = ramp(t, 30.98, 31.4) * (1 - ramp(t, 41.0, 41.5));
+  s.fade = ramp(t, 130.2, 130.9);
+  return s;
+}
+
+// ------------------------------------------------------------------ cameras (cuts between shots)
+function camera(t, s) {
+  const C = s.carY;
+  const hero = (dx = 0) => ({ p: [0.75 + dx, C + 1.35, 2.75], q: [0, C + 1.75, -0.7], f: 50, a: 0.012 });
+  const wide = (y) => ({ p: [0.9, y + 1.6, 6.2], q: [0, y + 1.2, -0.9], f: 46, a: 0.004 });
+  const mv = (a, b, u) => ({ p: L3(a.p, b.p, u), q: L3(a.q, b.q, u), f: lerp(a.f, b.f, u), a: lerp(a.a ?? 0, b.a ?? 0, u) });
+  const shots = [
+    [0, 1.48, () => mv({ p: [-1.3, 1.6, 2.0], q: [-2.3, 1.45, -1.1], f: 40, a: 0.01 }, { p: [-1.45, 1.6, 1.6], q: [-2.3, 1.5, -1.1], f: 40, a: 0.01 }, ramp(t, 0, 1.48))],
+    [1.48, 3.7, () => mv({ p: [0.6, 1.0, 4.0], q: [0, 8, -0.9], f: 50 }, { p: [0.6, 30, 6.5], q: [0, 37.4, -1], f: 46 }, ramp(t, 1.48, 3.4))],
+    [3.7, 5.24, () => ({ p: [-1.55, 1.5, 1.35], q: [-2.3, 1.3, -1.1], f: 40, a: 0.01 })],
+    [5.24, 7.66, () => mv({ p: [1.0, 4.0, 9.0], q: [0, 3.0, -0.9], f: 46 }, { p: [1.0, 3.6, 8.0], q: [0, 2.8, -0.9], f: 46 }, ramp(t, 5.24, 7.66))],
+    [7.66, 8.74, () => ({ p: [2.0, s.roof + 1.6, 4.6], q: [0.7, s.roof + 0.7, -0.9], f: 44, a: 0.005 })],
+    [8.74, 9.5, () => wide(F(0))],
+    [9.5, 10.36, () => ({ p: [2.2, s.roof + 1.3, 3.0], q: [0.7, s.roof + 0.6, -0.5], f: 40, a: 0.006 })],
+    [10.36, 16.16, () => ({ p: [1.2, C + 1.9, 5.4], q: [0, C + 1.5, -0.9], f: 46, a: 0.004 })],
+    [16.16, 18.45, () => ({ p: [1.2, Math.max(C, 0) + 1.9 + (t - 16.16) * 1.2, 5.4], q: [0, C + 1.4, -0.9], f: 50, a: 0.003 })],
+    [18.45, 19.72, () => ({ p: [1.1, 0.9, 4.6], q: [0, 0.2, -0.9], f: 48, a: 0.004 })],
+    [19.72, 21.84, () => wide(8.0)],
+    [21.84, 23.92, () => mv({ p: [-0.1, 10.9, 2.4], q: [-0.9, 10.3, -0.85], f: 40, a: 0.008 }, { p: [-0.2, 10.7, 1.9], q: [-0.9, 10.3, -0.85], f: 40, a: 0.008 }, ramp(t, 21.84, 23.92))],
+    [23.92, 27.7, () => mv({ p: [0.7, 11.0, 2.9], q: [0, 10.45, -0.85], f: 42, a: 0.008 }, { p: [0.6, 10.95, 2.4], q: [0, 10.45, -0.85], f: 42, a: 0.008 }, ramp(t, 23.92, 27.7))],
+    [27.7, 30.98, () => hero()],
+    [30.98, 38.88, () => mv({ p: [1.2, 10.6, 7.6], q: [0, 9.6, -0.9], f: 40, a: 0.004 }, { p: [1.0, 10.4, 6.2], q: [0, 9.6, -0.9], f: 40, a: 0.004 }, ramp(t, 30.98, 38.88))],
+    [38.88, 44.96, () => hero(0.05 * Math.sin(t * 3))],
+    [44.96, 47.34, () => ({ p: [1.1, C + 2.0, 5.6], q: [0, C + 1.4, -0.9], f: 46, a: 0.004 })],
+    [47.34, 51.37, () => ({ p: [3.4, s.roof + 1.8, 5.2], q: [1.2, s.roof + 0.7, -0.9], f: 46, a: 0.004 })],
+    [51.37, 60.67, () => ({ p: [2.4, 20.5, 13.0], q: [0.6, 20.0, -0.9], f: 46, a: 0.0 })],
+    [60.67, 61.4, () => ({ p: [3.0, s.roof + 1.5, 4.6], q: [1.2, s.roof + 0.7, -0.9], f: 44, a: 0.004 })],
+    [61.4, 62.8, () => hero()],
+    [62.8, 64.78, () => ({ p: [1.6, Math.min(C, 24) + 1.6, 7.0], q: [0, Math.min(C, 24) + 1.6, -0.9], f: 50, a: 0.0 })],
+    [64.78, 68.93, () => hero()],
+    [68.93, 75.3, () => mv({ p: [0.3, s.roof + 1.4, 3.4], q: [-0.4, s.roof + 0.7, -0.85], f: 42, a: 0.006 }, { p: [0.0, s.roof + 1.2, 2.6], q: [-0.5, s.roof + 0.6, -0.85], f: 42, a: 0.006 }, ramp(t, 68.93, 75.3))],
+    [75.3, 76.6, () => hero()],
+    [76.6, 79.24, () => ({ p: [0.8, 0.3, 3.4], q: [0, -0.85, -0.85], f: 44, a: 0.006 })],
+    [79.24, 84.9, () => ({ p: [0.5, F(6) + 1.0 - 1.4 * ramp(t, 84.3, 84.9), 5.2], q: [-0.9, F(6) + 0.9 - 1.2 * ramp(t, 84.3, 84.9), -0.9], f: 50, a: 0.004 })],
+    [84.9, 88.5, () => ({ p: [0.6, F(6) + 1.4, 6.0], q: [-0.4, F(6) + 0.9, -0.9], f: 46, a: 0.0 })],
+    [88.5, 98.98, () => ({ p: [-0.25, F(6) + 1.45, 2.7], q: [-0.85, F(6) + 1.0, -0.8], f: 46, a: 0.006 })],
+    [98.98, 103.0, () => mv({ p: [30, 50, 150], q: [0, 30, -1], f: 40 }, { p: [110, 210, 560], q: [0, 190, -1], f: 44 }, ramp(t, 99.0, 102.5))],
+    [103.0, 108.8, () => mv({ p: [2.6, 186, 9], q: [0, 188, -0.85], f: 50 }, { p: [2.6, 192, 9], q: [0, 200, -0.85], f: 50 }, ramp(t, 103, 108.8))],
+    [108.8, 112.54, () => ({ p: [1.6, 182.2, 6.4], q: [0, C + 1.4, -0.9], f: 48, a: 0.002 })],
+    [112.54, 116.66, () => ({ p: [0.9, 183.4, 2.8], q: [0, 183.0, -0.85], f: 44, a: 0.006 })],
+    [116.66, 122.98, () => ({ p: [-2.9, F(99) + 1.5, 2.6], q: [-0.2, F(99) + 1.3, -0.8], f: 44, a: 0.006 })],
+    [122.98, 124.4, () => mv({ p: [0.55, -0.95, 0.25], q: [0.3, -1.23, -0.45], f: 36, a: 0.004 }, { p: [0.45, -1.05, 0.0], q: [0.3, -1.23, -0.45], f: 36, a: 0.004 }, ramp(t, 122.98, 124.4))],
+    [124.4, 125.58, () => ({ p: [-1.0, F(99) + 1.6, 1.2], q: [0, F(99) + 1.55, -0.55], f: 40, a: 0.008 })],
+    [125.58, 128.26, () => mv({ p: [60, 120, 330], q: [0, 170, -1], f: 44 }, { p: [70, 150, 380], q: [0, 175, -1], f: 44 }, ramp(t, 125.58, 128.26))],
+    [128.26, 999, () => ({ p: [-1.8, F(99) + 1.4, 4.2], q: [-2.6, F(99) + 1.1, -1.0], f: 46, a: 0.004 })],
+  ];
+  let c = shots[shots.length - 1][2]();
+  for (const [a, b, fn] of shots) if (t >= a && t < b) { c = fn(); break; }
+  // camera shake on impacts
+  const hit = (a, k = 1) => (t >= a && t < a + 0.6 ? k * Math.exp(-(t - a) * 7) : 0);
+  const sh = hit(18.45, 0.06) + hit(28.62, 0.03) + hit(37.9, 0.02) + hit(48.0, 0.02) + hit(64.8, 0.04) + hit(75.32, 0.03) + hit(84.75, 0.05) + hit(91.36, 0.02) + (t > 48.0 && t < 50.9 ? 0.006 : 0);
+  if (sh > 0) { c.p = c.p.map((v, i) => v + sh * Math.sin(t * (53 + i * 17) + i)); c.q = c.q.map((v, i) => v + sh * 0.5 * Math.sin(t * (47 + i * 13))); }
+  return c;
+}
+
+// ------------------------------------------------------------------ overlays (captions, cards, stamps)
+let WORDS = [];
+const CARDS = [
+  [19.72, 27.6, 'SAFETY BRAKE'], [51.37, 58.3, 'COUNTERWEIGHT'], [68.93, 75.2, 'GOVERNOR'], [84.9, 94.7, 'INTERLOCKS'],
+  [94.8, 98.9, 'LIGHT CURTAIN'], [111.94, 116.6, 'CARBON-FIBRE ROPE'] ];
+const STAMPS = [
+  [1.9, 3.6, 'FLOOR 10', '#ffffff', '#141414', 0.05], [11.66, 13.45, 'CONGRATULATIONS!', '#ffd23a', '#141414', -0.05], [16.16, 17.2, 'SNAP.', '#ffffff', '#d93a2b', -0.12],
+  [31.0, 36.0, 'NEW YORK · 1854', '#f3e3c3', '#3a2a1a', 0.0], [38.88, 40.6, '"ALL SAFE, GENTLEMEN."', '#f3e3c3', '#3a2a1a', 0.0],
+  [50.4, 51.3, '$$$$$', '#7dff7a', '#0d3d10', -0.1], [60.67, 61.6, 'TINY MOTOR', '#ffffff', '#141414', 0.06],
+  [83.0, 84.2, 'FLOOR 5 ↓', '#ffffff', '#d93a2b', -0.06], [91.36, 92.3, 'CHOMP.', '#ffffff', '#d93a2b', -0.1],
+  [99.4, 100.8, '+90 FLOORS', '#ffd23a', '#141414', 0.05], [100.0, 101.4, 'STEVE: NOT CONSULTED', '#ffffff', '#d93a2b', -0.08],
+  [106.84, 108.6, 'STEEL: ~500 m MAX', '#ffffff', '#141414', 0.0], [114.72, 116.4, 'UP TO 1 KM', '#ffd23a', '#141414', 0.0],
+  [116.66, 117.7, 'DING!', '#ffd23a', '#141414', -0.1], [117.48, 119.6, 'FLOOR 100', '#ffffff', '#141414', 0.0],
+  [123.0, 124.3, 'FLOOR 1.', '#ffffff', '#d93a2b', 0.0], [125.58, 128.2, 'CONGRATULATIONS.', '#ffd23a', '#141414', 0.0] ];
+const FIX = [[19.72, 'FIX #1'], [51.37, 'FIX #2'], [68.93, 'FIX #3'], [84.9, 'FIX #4'], [111.94, 'FIX #5']];
+function chunks() {   // 1-3 word caption chunks, broken at punctuation
+  const out = []; let cur = [];
+  for (const w of WORDS) { cur.push(w); if (cur.length >= 3 || /[.,?!:]$/.test(w.w)) { out.push(cur); cur = []; } }
+  if (cur.length) out.push(cur);
+  return out.map((c, i, a) => ({ t0: c[0].t, t1: i + 1 < a.length ? a[i + 1][0].t : c[c.length - 1].end + 0.6, text: c.map((w) => w.w).join(' ') }));
+}
+let CH = [];
+const KEYW = /^(rope|wheel|box|snap|brake|teeth|claws|bite|otis|counterweight|governor|springs|doors|interlocks|beams|ninety|steel|carbon|ding|keys|stairs|fast|heavy|motor)/i;
+function overlay(g, t, W, H) {
+  const S = W / 1080;
+  const txt = (s, x, y, size, font, fill, stroke, lw, rot = 0, alpha = 1) => { g.save(); g.globalAlpha = alpha; g.translate(x * S, y * S); g.rotate(rot); g.font = `${size * S}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineJoin = 'round'; g.strokeStyle = stroke; g.lineWidth = lw * S; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 20 * S; g.shadowOffsetY = 7 * S; g.strokeText(s, 0, 0);
+    g.shadowColor = 'transparent'; g.fillStyle = fill; g.fillText(s, 0, 0); g.restore(); };
+  const pop = (a) => { const u = cl((t - a) / 0.18); return 0.6 + 0.4 * (1 - (1 - u) ** 3) + 0.12 * Math.sin(u * Math.PI); };
+  for (const [a, b, s] of CARDS) if (t >= a && t < b) { const k = pop(a); const fx = FIX.find((f) => f[0] === a);
+    if (fx) txt(fx[1], 540, 150, 54 * k, 'IXB', '#ffffff', '#141414', 14);
+    txt(s, 540, 225, Math.min(112, 1700 / s.length) * k, 'IB', '#ffd23a', '#141414', 24); }
+  for (const [a, b, s, fill, stroke, rot] of STAMPS) if (t >= a && t < b) txt(s, 540, 430, Math.min(96, 1500 / s.length) * pop(a), 'IB', fill, stroke, 22, rot, cl((b - t) / 0.15));
+  const c = CH.find((c) => t >= c.t0 && t < c.t1);
+  if (c) { g.save(); g.font = `${74 * S}px IXB`; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const words = c.text.split(' '); const sp = g.measureText(' ').width; const tw = words.reduce((a, w) => a + g.measureText(w).width, 0) + sp * (words.length - 1);
+    let x = W / 2 - tw / 2; const y = 1640 * S;
+    for (const w of words) { const kw = KEYW.test(w.replace(/[^a-z]/gi, ''));
+      g.strokeStyle = '#111'; g.lineWidth = 17 * S; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 14 * S; g.shadowOffsetY = 5 * S; g.strokeText(w, x, y);
+      g.shadowColor = 'transparent'; g.fillStyle = kw ? '#ffd23a' : '#ffffff'; g.fillText(w, x, y); x += g.measureText(w).width + sp; }
+    g.restore(); }
+  // speed lines while the car rockets up or falls
+  if ((t > 63.9 && t < 64.8) || (t > 16.5 && t < 18.4)) { g.save(); g.globalAlpha = 0.5; g.strokeStyle = '#fff'; g.lineCap = 'round';
+    for (let i = 0; i < 9; i++) { const x = (90 + i * 113 + (i * 37) % 50) * S, y0 = ((t * 2400 + i * 330) % 1900) * S; g.lineWidth = (3 + (i % 3) * 2) * S; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y0 + 260 * S); g.stroke(); }
+    g.restore(); }
+  // end card
+  if (t > 129.4) { const a = cl((t - 129.4) / 0.6); txt('HOW IT REALLY WORKS', 540, 960, 80, 'IB', '#ffffff', '#141414', 18, 0, a); }
+}
+
+// ------------------------------------------------------------------ GPU passes (same proven driver as the look tests)
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+const DEN = `#version 300 es
+precision highp float;
+uniform sampler2D I; uniform sampler2D G; uniform sampler2D A; uniform sampler2D C;
+uniform float uN; uniform int uStep; uniform int uMode; out vec4 o;
+void main(){ ivec2 p = ivec2(gl_FragCoord.xy); ivec2 sz = textureSize(A,0);
+  vec3 alb = max(texelFetch(A,p,0).rgb/uN, vec3(0.03));
+  if (uMode==0){ o = vec4(texelFetch(C,p,0).rgb/uN/alb, 1.); return; }
+  vec4 g0 = texelFetch(G,p,0)/uN; vec3 n0 = g0.xyz/max(length(g0.xyz),1e-4); float d0 = g0.w;
+  vec3 c0 = texelFetch(I,p,0).rgb; float l0 = dot(c0, vec3(0.2126,0.7152,0.0722));
+  float kw[3] = float[3](0.375, 0.25, 0.0625);
+  vec3 sum = vec3(0.); float ws = 0.;
+  for (int j=-2;j<=2;j++) for (int i=-2;i<=2;i++){
+    ivec2 q = clamp(p + ivec2(i,j)*uStep, ivec2(0), sz-1);
+    vec3 c = texelFetch(I,q,0).rgb; vec4 g = texelFetch(G,q,0)/uN; vec3 n = g.xyz/max(length(g.xyz),1e-4);
+    float wn = pow(max(dot(n0,n),0.), 48.);
+    float wd = exp(-abs(g.w-d0)/(0.012*d0*float(uStep) + 0.002));
+    float wl = exp(-abs(dot(c,vec3(0.2126,0.7152,0.0722)) - l0)/(0.45*(l0+0.03)*sqrt(float(uStep))));
+    float w = kw[abs(i)]*kw[abs(j)]*wn*wd*wl; sum += c*w; ws += w; }
+  vec3 r = sum/max(ws,1e-5);
+  if (uMode==2) r *= alb;
+  o = vec4(r,1.); }`;
+const POST = `#version 300 es
+precision highp float; uniform sampler2D T; uniform vec2 uRes; uniform float uSepia, uFade; out vec4 o;
+vec3 aces(vec3 x){ const mat3 A=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777);
+  const mat3 B=mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602);
+  vec3 v=A*x; vec3 a=v*(v+0.0245786)-0.000090537; vec3 b=v*(0.983729*v+0.4329510)+0.238081; return clamp(B*(a/b),0.,1.); }
+vec3 tap(vec2 uv){ return texture(T, uv).rgb; }
+void main(){ vec2 uv = gl_FragCoord.xy/uRes;
+  vec2 dc = (uv-0.5)*0.0018;
+  vec3 c = vec3(tap(uv+dc).r, tap(uv).g, tap(uv-dc).b);
+  vec3 b = vec3(0.); float w = 0.;
+  for (int i=-4;i<=4;i++) for (int j=-4;j<=4;j++){ vec2 off = vec2(i,j)*12./uRes; float k = exp(-float(i*i+j*j)/7.);
+    b += max(tap(uv+off) - 1.0, 0.)*k; w += k; }
+  c += b/w*1.4;
+  c *= 1.35; c = aces(c); c = pow(c, vec3(1./2.2));
+  c = mix(vec3(dot(c,vec3(0.2126,0.7152,0.0722))), c, 1.08);
+  c = c*c*(3.-2.*c)*0.18 + c*0.82;
+  float lu = dot(c, vec3(0.299,0.587,0.114));
+  c = mix(c, vec3(lu*1.07, lu*0.92, lu*0.72), uSepia*0.9);
+  float vig = smoothstep(1.2, 0.3, length((uv-0.5)*vec2(0.85,1.)));
+  c *= mix(0.62 - 0.15*uSepia, 1., vig);
+  c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233)))*43758.5453)-0.5)*(0.018 + 0.03*uSepia);
+  c *= 1. - uFade;
+  o = vec4(c,1.); }`;
+
+window.addEventListener('load', () => setTimeout(() => (async () => {
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.round(1080 * dpr), H = Math.round(1920 * dpr);
+  const out = document.getElementById('c'); out.width = W; out.height = H;
+  const cv = document.createElement('canvas'); cv.width = RW; cv.height = RH;
+  const gl = cv.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  gl.getExtension('EXT_color_buffer_float'); gl.getExtension('EXT_float_blend');
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  window.glInfo = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  const par = gl.getExtension('KHR_parallel_shader_compile');
+  const mk = (t, src) => { const x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); return x; };
+  const prog = async (f) => { const vs = mk(gl.VERTEX_SHADER, VS), fsx = mk(gl.FRAGMENT_SHADER, f); const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fsx); gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p);
+    if (par) while (!gl.getProgramParameter(p, par.COMPLETION_STATUS_KHR)) await new Promise((r) => setTimeout(r, 100));
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('VS ' + gl.getShaderInfoLog(vs) + ' FS ' + gl.getShaderInfoLog(fsx) + ' LINK ' + gl.getProgramInfoLog(p)); return p; };
+  const tc = performance.now(); const [P1, P2, P3] = await Promise.all([prog(window.SCENE_FS), prog(POST), prog(DEN)]); window.compileSeconds = (performance.now() - tc) / 1000;
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const mkTex = (fmt) => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, fmt, RW, RH, 0, gl.RGBA, gl.FLOAT, null);
+    const flt = fmt === gl.RGBA32F ? gl.NEAREST : gl.LINEAR;
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, flt], [gl.TEXTURE_MAG_FILTER, flt], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v); return t; };
+  const accC = mkTex(gl.RGBA32F), accN = mkTex(gl.RGBA32F), accA = mkTex(gl.RGBA32F), pp = [mkTex(gl.RGBA16F), mkTex(gl.RGBA16F)];
+  const fbAcc = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fbAcc);
+  [accC, accN, accA].forEach((t, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0));
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+  const fbPP = pp.map((t) => { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; });
+  try { await document.fonts.load('100px IB'); await document.fonts.load('100px IXB'); } catch (e) { console.warn('font', e.message); }
+  try { WORDS = await (await fetch('../audio/words.json')).json(); CH = chunks(); } catch (e) { console.warn('words', e.message); }
+  const DUR = 131.4;
+  window.frames = TEST ? TEST.length : Math.ceil(DUR * FPS);
+
+  const gpuDone = async () => { const sy = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    while (true) { const r = gl.clientWaitSync(sy, 0, 0); if (r === gl.ALREADY_SIGNALED || r === gl.CONDITION_SATISFIED) break; if (r === gl.WAIT_FAILED || gl.isContextLost()) throw new Error('GPU reset / wait failed'); await new Promise((q) => setTimeout(q, 5)); }
+    gl.deleteSync(sy); if (gl.isContextLost()) throw new Error('GPU reset'); };
+  const blocks = async (bw = 256, bh = 32) => { gl.enable(gl.SCISSOR_TEST);
+    for (let y = 0; y < RH; y += bh) { for (let x = 0; x < RW; x += bw) { gl.scissor(x, y, bw, bh); gl.drawArrays(gl.TRIANGLES, 0, 3); } gl.flush(); }
+    await gpuDone(); gl.disable(gl.SCISSOR_TEST); };
+  const U1 = (p, n) => gl.getUniformLocation(p, n);
+
+  window.renderFrame = async (f) => {
+    const t = TEST ? TEST[f] : f / FPS;
+    const s = state(t), c = camera(t, s);
+    const Pv = new Float32Array(44);
+    [s.carY, s.carVis, s.ropeVis, s.ropeSnap, s.wheelVis, s.wheelAng, s.teeth, s.clawVis, s.clawOut, s.spark,
+     s.steve[0] + (t > 41.86 && t < 44.96 ? 0.006 * Math.sin(t * 90) : 0), s.steve[1], s.steve[2], s.arms, s.crouch, s.slump, s.hairUp, s.hairLag, s.coffee, s.bag,
+     s.cwVis, s.cwY, s.motorVis, s.motorSc, s.govVis, s.govAng, s.govOut, s.springVis, s.doorOpen, s.doorY, s.doorVis, s.beam,
+     s.carbon, s.keys, s.ropeCut, s.steveVis, s.roof, s.yaw, s.rails, s.pocket, s.walk].forEach((v, i) => (Pv[i] = v));
+    const dist = Math.hypot(...c.p.map((v, i) => v - c.q[i]));
+    const lampK = Math.max(0, Math.floor(c.q[1] / 3.6));
+    // path trace
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbAcc); gl.viewport(0, 0, RW, RH);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(P1);
+    gl.uniform2f(U1(P1, 'uRes'), RW, RH); gl.uniform1fv(U1(P1, 'P'), Pv);
+    gl.uniform3f(U1(P1, 'uCamPos'), ...c.p); gl.uniform3f(U1(P1, 'uCamTgt'), ...c.q);
+    gl.uniform3f(U1(P1, 'uLamp'), -0.94, lampK * 3.6 + 2.9, 0.15);
+    gl.uniform1f(U1(P1, 'uFov'), c.f); gl.uniform1f(U1(P1, 'uFocus'), dist); gl.uniform1f(U1(P1, 'uAper'), c.a || 0);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    for (let k = 0; k < SPP; k++) { gl.uniform1ui(U1(P1, 'uSeed'), k * 7919 + f * 104729 + 1); await blocks(); }
+    gl.disable(gl.BLEND);
+    // denoise (edge-aware, textures kept in the albedo buffer)
+    gl.useProgram(P3);
+    gl.uniform1f(U1(P3, 'uN'), SPP); gl.uniform1i(U1(P3, 'I'), 0); gl.uniform1i(U1(P3, 'G'), 1); gl.uniform1i(U1(P3, 'A'), 2); gl.uniform1i(U1(P3, 'C'), 3);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accN); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, accA); gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, accC);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbPP[0]); gl.uniform1i(U1(P3, 'uMode'), 0); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[1]); await blocks(540, 128);
+    let src = 0; const steps = [1, 2, 4, 8, 16];
+    for (let k = 0; k < steps.length; k++) { const dst = 1 - src;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbPP[dst]); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[src]);
+      gl.uniform1i(U1(P3, 'uStep'), steps[k]); gl.uniform1i(U1(P3, 'uMode'), k === steps.length - 1 ? 2 : 1); await blocks(540, 128); src = dst; }
+    // post
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, RW, RH); gl.useProgram(P2);
+    gl.uniform2f(U1(P2, 'uRes'), RW, RH); gl.uniform1f(U1(P2, 'uSepia'), s.sepia); gl.uniform1f(U1(P2, 'uFade'), s.fade);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[src]); gl.uniform1i(U1(P2, 'T'), 0);
+    await blocks(540, 128);
+    const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, W, H);
+    if (s.fade < 0.99 || t > 129.4) overlay(g, t, W, H);
+  };
+  window.hdriUsed = () => `ray-marched path tracer, ${SPP} spp + denoiser, ${RW}x${RH}, compile ${window.compileSeconds?.toFixed(1)} s`;
+  window.done = true;
+})().catch((e) => { console.error(e); document.title = 'ERROR ' + e.message; window.glInfo = 'ERROR ' + e.message; window.done = true; }), 50));
+</script></body></html>

@@ -1,5 +1,5 @@
 {
- "fps": 30,
+ "fps": 24,
  "duration_s": 130.82,
  "energy": "punchy",
  "kit": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\kit",
@@ -258,5 +258,12 @@
    "visual": "appear",
    "pan": 0
   }
- ]
+ ],
+ "music": {
+  "file": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\music\\steve-elevator.wav",
+  "start_s": 0,
+  "loop": true,
+  "fade_out_s": 2.0
+ },
+ "duck_db": 12
 }

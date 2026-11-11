@@ -20,6 +20,7 @@ if (-not ((Ok $job.slug) -and (Ok $job.name))) { 'rejected: slug/name'; exit 1 }
 $vid = "$Studio\videos\$($job.slug)"; $aud = "$vid\audio"; $out = "$Root\out\$($job.name)"
 $page = "videos/$($job.slug)/" + $(if (Ok $job.page) { $job.page } else { 'web/short.html' })
 $steps = $(if ($job.steps) { "$($job.steps)" } else { 'voice,words,audio,render,encode' }).Split(',') | ForEach-Object { $_.Trim() }
+$fps = $(if ("$($job.fps)" -match '^(24|25|30|60)$') { "$($job.fps)" } else { '30' })
 $scale = $(if ("$($job.scale)" -match '^(1|1\.25|1\.5|1\.75|2)$') { "$($job.scale)" } else { '2' })
 New-Item -ItemType Directory -Force $out | Out-Null
 $status = "$out\STATUS.txt"; "make $($job.name) started $(Get-Date -f s) steps=$($steps -join ',') scale=$scale" | Out-File $status -Encoding utf8
@@ -66,7 +67,7 @@ Step 'render' {
 Step 'encode' {
   $wav = $(if (Test-Path "$out\final.wav") { "$out\final.wav" } else { "$aud\final.wav" })
   $a = @(); if (Test-Path $wav) { $a = @('-i', $wav, '-c:a', 'aac', '-b:a', '192k', '-shortest') }
-  ffmpeg -v error -y -framerate 30 -i "$out\frames\f%04d.jpg" @a -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "$out\$($job.name).mp4"
+  ffmpeg -v error -y -framerate $fps -i "$out\frames\f%04d.jpg" @a -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "$out\$($job.name).mp4"
   if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf scale=540:960 -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k -movflags +faststart "$out\preview.mp4" }
   if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf "select='not(mod(n\,125))',scale=270:480,tile=8x2:padding=4" -frames:v 1 "$out\sheet.jpg" }
 }
@@ -97,6 +98,8 @@ Step 'sfxkit' {
 Step 'sfxmix' {
   # cue sheet videos/<slug>/audio/cues.json (absolute paths) -> out\<name>\mix\mix.wav + mix_preview.mp3
   & $py -m pip install -q numpy scipy soundfile pyloudnorm matplotlib
+  New-Item -ItemType Directory -Force "$sx\music" | Out-Null
+  if (-not (Test-Path "$sx\music\$($job.slug).wav")) { & $py "$Studio\kit\local\music_gen.py" "$sx\music\$($job.slug).wav" 150 }
   Push-Location $sx; & $py "$sl\mix.py" "$aud\cues.json" --out "$out\mix"; Pop-Location
   if ($LASTEXITCODE -eq 0) { Copy-Item "$out\mix\mix.wav" "$out\final.wav" -Force; ffmpeg -v error -y -i "$out\mix\mix.wav" -b:a 192k "$out\mix_preview.mp3" }
 }
