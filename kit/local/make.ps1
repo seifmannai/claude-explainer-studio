@@ -70,4 +70,34 @@ Step 'encode' {
   if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf scale=540:960 -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k -movflags +faststart "$out\preview.mp4" }
   if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf "select='not(mod(n\,125))',scale=270:480,tile=8x2:padding=4" -frames:v 1 "$out\sheet.jpg" }
 }
+# ---- sound layer (skills/vendor/opus-sound-layer): real CC0 recordings, placed from a cue sheet ----
+$sl = "$Studio\skills\vendor\opus-sound-layer\scripts"; $sx = "$Root\sfx"
+Step 'sfxkit' {
+  # library (once, kept in $Root\sfx\kit) + per-video searches; review files (json + sheets) go to out\<name>\sfx_review
+  & $py -m pip install -q numpy scipy soundfile pyloudnorm matplotlib
+  New-Item -ItemType Directory -Force $sx | Out-Null; Push-Location $sx
+  if (-not (Test-Path "$sx\kit\catalog.json")) { & $py "$sl\sfx.py" kit --out "$sx\kit" }
+  $rev = "$out\sfx_review"; New-Item -ItemType Directory -Force $rev | Out-Null
+  if (Test-Path "$aud\sfx_search.txt") {
+    foreach ($l in Get-Content "$aud\sfx_search.txt") {
+      if ($l -match '^\s*#' -or $l -notmatch '\|') { continue }
+      $p = $l.Split('|'); $nm = $p[0].Trim(); $ty = $p[1].Trim(); $q = $p[2].Trim(); $n = $(if ($p.Count -gt 3) { $p[3].Trim() } else { '4' })
+      if (-not (Ok $nm)) { continue }
+      $cd = "$sx\cand\$($job.slug)\$nm"
+      if (-not (Test-Path $cd)) { & $py "$sl\sfx.py" search $q --type $ty --n $n --out $cd }
+      $wavs = @(Get-ChildItem $cd -Recurse -Filter *.wav -ErrorAction SilentlyContinue | ForEach-Object FullName)
+      if ($wavs.Count) { & $py "$sl\sfx.py" sheet @wavs --png "$rev\$nm.png" }
+      Get-ChildItem $cd -Recurse -Filter *.json -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName "$rev\$nm`__$($_.Name)" -Force }
+    }
+  }
+  if (Test-Path "$aud\cc0_fetch.txt") { & $py "$Studio\kit\local\fetch_cc0.py" "$aud\cc0_fetch.txt" "$sx\long\$($job.slug)"; Copy-Item "$sx\long\$($job.slug)\index.json" "$rev\long_index.json" -Force }
+  Copy-Item "$sx\kit\catalog.json" "$rev\catalog.json" -Force
+  Pop-Location; $global:LASTEXITCODE = 0
+}
+Step 'sfxmix' {
+  # cue sheet videos/<slug>/audio/cues.json (absolute paths) -> out\<name>\mix\mix.wav + mix_preview.mp3
+  & $py -m pip install -q numpy scipy soundfile pyloudnorm matplotlib
+  Push-Location $sx; & $py "$sl\mix.py" "$aud\cues.json" --out "$out\mix"; Pop-Location
+  if ($LASTEXITCODE -eq 0) { Copy-Item "$out\mix\mix.wav" "$out\final.wav" -Force; ffmpeg -v error -y -i "$out\mix\mix.wav" -b:a 192k "$out\mix_preview.mp3" }
+}
 "DONE $(Get-Date -f s)" | Out-File $status -Append -Encoding utf8

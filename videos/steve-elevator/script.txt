@@ -1,0 +1,66 @@
+# text | speed | pause after (s). Blank line = scene break. Voice: michael*0.4 + puck*0.6 (Kokoro). Video 3: Steve & the elevator.
+This is Steve.|0.95|0.3
+Steve lives on the tenth floor.|1.0|0.3
+Steve has given up.|0.92|0.65
+
+So you build him a lift.|1.0|0.25
+A rope, a wheel on the roof, and a wooden box.|1.02|0.3
+You crank. Steve rises.|1.0|0.35
+Congratulations. You invented the elevator.|0.98|0.3
+For about four seconds.|0.95|0.6
+
+Ropes snap.|1.0|0.3
+And Steve is now part of the basement.|0.95|0.65
+
+Fix number one: the safety brake.|1.0|0.3
+Teeth on the rails. Spring-loaded claws on the box.|1.02|0.25
+While the rope pulls, the claws stay tucked in.|1.0|0.25
+The moment it snaps, they spring out and bite.|1.02|0.4
+This part is real. In eighteen fifty-four, Elisha Otis cut his own rope in front of a crowd in New York.|1.02|0.25
+The platform dropped a few inches... and stopped.|1.0|0.3
+All safe, gentlemen.|0.92|0.35
+Steve says it too. Quietly. Shaking.|0.95|0.65
+
+Next problem: Steve is heavy.|1.02|0.25
+You make it to floor three and pass out.|1.0|0.3
+So you buy a giant motor.|1.0|0.25
+It works. So does your electricity bill.|1.0|0.6
+
+Fix number two: a counterweight.|1.0|0.25
+A heavy block on the other end of the rope, about the weight of the box plus half a full load.|1.02|0.25
+Now the motor only lifts the difference.|1.0|0.3
+Tiny motor. Same Steve.|0.95|0.65
+
+But now it's fast.|1.05|0.25
+Too fast.|0.95|0.25
+Steve arrives at the top. His hair arrives a second later.|1.0|0.65
+
+Fix number three: a governor.|1.0|0.25
+A spinning wheel with weights. Go too fast, the weights fly out and fire the brake.|1.02|0.25
+And big springs at the bottom of the shaft. Just in case.|1.0|0.65
+
+Then there are the doors.|1.0|0.25
+Steve steps out on floor six.|1.0|0.25
+The elevator is on floor five.|0.95|0.7
+
+Fix number four: interlocks.|1.0|0.25
+A floor door can't open unless the box is right behind it.|1.0|0.3
+And the door that ate Steve's baguette?|1.0|0.25
+Invisible beams across the doorway. Break one, and the door backs off.|1.02|0.65
+
+Then the landlord adds ninety floors.|1.0|0.25
+Steve was not consulted.|0.92|0.5
+A steel rope that long is so heavy, it mostly lifts itself.|1.02|0.25
+Steel tops out at around five hundred metres.|1.0|0.25
+Steve, meanwhile, is bouncing like a bungee.|1.0|0.65
+
+Fix number five: rope made of carbon fibre.|1.0|0.25
+Much lighter, and built for lifts up to a kilometre high.|1.02|0.65
+
+Ding.|1.1|0.4
+Floor one hundred.|0.95|0.3
+Perfect ride. Soft music.|0.98|0.3
+Steve reaches for his keys.|1.0|0.45
+His keys are on floor one.|0.92|0.65
+Congratulations. You invented the elevator.|0.98|0.3
+Steve takes the stairs.|0.92|0.8

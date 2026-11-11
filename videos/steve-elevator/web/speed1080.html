@@ -1,0 +1,675 @@
+<!doctype html><html><head><meta charset="utf-8">
+<!-- Steve & the elevator: LOOK TEST still (semi-realistic cartoon). Rendered on the PC GPU by the runner ("still" job).
+     Contract for kit/local/local_render.mjs: canvas#c, window.done, window.glInfo, async window.renderFrame(f). -->
+<style>
+@font-face{font-family:IB;src:url(../../../kit/fonts/Inter-Black.otf)}
+@font-face{font-family:IXB;src:url(../../../kit/fonts/Inter-ExtraBold.otf)}
+html,body{margin:0;background:#000;overflow:hidden}
+#c{display:block;width:1080px;height:1920px}
+</style></head><body><canvas id="c"></canvas>
+<script>
+const SPP = 8;            // samples per pixel (soft shadows, bounce light, depth of field all converge here)
+const TILE_ROWS = 48;      // rows per draw call (keeps each GPU call short: no Windows driver timeout)
+
+const VS = `#version 300 es
+in vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+
+const FS = `#version 300 es
+precision highp float; precision highp int;
+uniform vec2 uRes; uniform uint uSeed; uniform vec2 uJit;
+layout(location=0) out vec4 o; layout(location=1) out vec4 oN; layout(location=2) out vec4 oA;
+#define ZERO (min(int(uSeed),0))
+
+#define YC 1.0
+const vec3 CAMPOS = vec3(0.75, 2.35, 2.75);
+const vec3 CAMTGT = vec3(0.0, 2.75, -0.7);
+const float FOV = 50.0;
+const float FOCUS = 3.3;      // Steve's face
+const float APERTURE = 0.012;
+
+// ---------- utils ----------
+uint gs;
+float rnd(){ gs = gs*747796405u + 2891336453u; uint w = ((gs >> ((gs >> 28u) + 4u)) ^ gs) * 277803737u; w = (w >> 22u) ^ w; return float(w) / 4294967295.0; }
+float hash(float n){ return fract(sin(n)*43758.5453123); }
+float hash2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(hash2(i),hash2(i+vec2(1,0)),f.x), mix(hash2(i+vec2(0,1)),hash2(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float a=0.5, s=0.; for (int i=ZERO;i<4;i++){ s+=a*noise(p); p*=2.03; a*=0.5; } return s; }
+float noise3(vec3 p){ return noise(p.xy + p.z*17.3); }
+mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+float smin(float a, float b, float k){ float h=clamp(.5+.5*(b-a)/k,0.,1.); return mix(b,a,h)-k*h*(1.-h); }
+float smax(float a, float b, float k){ return -smin(-a,-b,k); }
+float sdBox(vec3 p, vec3 b){ vec3 q=abs(p)-b; return length(max(q,0.))+min(max(q.x,max(q.y,q.z)),0.); }
+float sdRBox(vec3 p, vec3 b, float r){ return sdBox(p,b-r)-r; }
+float sdRect2(vec2 p, vec2 b, float r){ vec2 q=abs(p)-b+r; return length(max(q,0.))+min(max(q.x,q.y),0.)-r; }
+float sdCap(vec3 p, vec3 a, vec3 b, float r){ vec3 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.); return length(pa-ba*h)-r; }
+float sdCapT(vec3 p, vec3 a, vec3 b, float ra, float rb){ vec3 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.); return length(pa-ba*h)-mix(ra,rb,h); }
+float sdEll(vec3 p, vec3 r){ float k0=length(p/r), k1=length(p/(r*r)); return k0*(k0-1.)/k1; }
+// flat ribbon segment (tie): width w, plane normal n
+float sdFlat(vec3 p, vec3 a, vec3 b, float wa, float wb, vec3 n){
+  vec3 ba=b-a; float h=clamp(dot(p-a,ba)/dot(ba,ba),0.,1.); vec3 q=p-(a+ba*h);
+  float dn=dot(q,n); float side=length(q-dn*n); return length(vec2(max(side-mix(wa,wb,h),0.), dn)) - 0.0035; }
+
+// ---------- materials ----------
+#define M_CONC 1.
+#define M_BRICK 2.
+#define M_RAIL 3.
+#define M_OAK 4.
+#define M_STEEL 5.
+#define M_BRASS 6.
+#define M_ROPE 7.
+#define M_SKIN 8.
+#define M_SHIRT 9.
+#define M_PANTS 10.
+#define M_SHOE 11.
+#define M_HAIR 12.
+#define M_EYE 13.
+#define M_FRAME 14.
+#define M_LIP 15.
+#define M_TIE 16.
+#define M_BELT 17.
+#define M_CUP 18.
+#define M_SLEEVE 19.
+#define M_COFFEE 20.
+#define M_LAMP 21.
+#define M_CAGE 22.
+#define M_WALLA 23.
+#define M_WALLB 24.
+#define M_FLOOR 25.
+#define M_PAINT 26.
+
+vec2 U(vec2 a, float d, float m){ return d<a.x ? vec2(d,m) : a; }
+
+const vec3 STEVE = vec3(0.0, YC, -0.55);       // Steve's feet (world)
+const vec3 HEADC = vec3(0.0, 1.66, 0.02);      // head centre (Steve local)
+const vec3 EYEL = vec3(-0.034, 0.016, 0.074), EYER = vec3(0.034, 0.016, 0.074); // eyeballs (head local)
+
+// ---------- Steve: adult, ~1.78 m, impact crouch, coffee in one hand, other hand on the rail ----------
+vec2 head(vec3 q){
+  vec2 r = vec2(1e9,0.);
+  float sk = sdEll(q - vec3(0.,0.012,-0.006), vec3(0.087,0.11,0.1));
+  sk = smin(sk, sdEll(q - vec3(0.,-0.052,0.026), vec3(0.071,0.066,0.079)), 0.03);       // jaw
+  sk = smin(sk, sdEll(q - vec3(0.,-0.098,0.068), vec3(0.03,0.026,0.026)), 0.02);        // chin
+  sk = smin(sk, min(sdEll(q - vec3(-0.046,-0.012,0.058), vec3(0.034,0.028,0.034)),
+                    sdEll(q - vec3( 0.046,-0.012,0.058), vec3(0.034,0.028,0.034))), 0.02); // cheekbones
+  sk = smin(sk, sdEll(q - vec3(0.,0.046,0.074), vec3(0.068,0.019,0.03)), 0.016);       // brow ridge
+  // nose
+  float nz = sdCapT(q, vec3(0.,0.032,0.092), vec3(0.,-0.02,0.117), 0.0105, 0.0155);
+  nz = smin(nz, length(q - vec3(0.,-0.024,0.114)) - 0.0165, 0.01);
+  nz = smin(nz, min(sdEll(q-vec3(-0.0145,-0.031,0.103), vec3(0.012,0.0095,0.012)), sdEll(q-vec3(0.0145,-0.031,0.103), vec3(0.012,0.0095,0.012))), 0.008);
+  sk = smin(sk, nz, 0.012);
+  // ears
+  sk = smin(sk, min(sdEll(q-vec3(-0.088,0.0,-0.006), vec3(0.013,0.031,0.02)), sdEll(q-vec3(0.088,0.0,-0.006), vec3(0.013,0.031,0.02))), 0.008);
+  // eye sockets
+  sk = smax(sk, -(length(q - (EYEL + vec3(0.,0.002,0.008))) - 0.025), 0.012);
+  sk = smax(sk, -(length(q - (EYER + vec3(0.,0.002,0.008))) - 0.025), 0.012);
+  // eyelids (wide open: shocked, but the mouth stays flat = deadpan)
+  for (int i=ZERO;i<2;i++){ vec3 e = i==0 ? EYEL : EYER; float side = i==0 ? -1. : 1.;
+    float shell = length(q - e) - 0.0212;
+    float up = max(shell, -((q.y - e.y) - 0.0105 - 0.08*(q.x - e.x)*side));
+    float lo = max(shell, (q.y - e.y) + 0.0135);
+    sk = smin(sk, min(up, lo), 0.003); }
+  // mouth: tight flat line, corners slightly down
+  float lips = sdEll(q - vec3(0.,-0.058,0.097), vec3(0.027,0.011,0.012));
+  sk = smin(sk, lips, 0.01);
+  float groove = min(sdCap(q, vec3(-0.025,-0.061,0.106), vec3(0.,-0.0565,0.111), 0.0022), sdCap(q, vec3(0.,-0.0565,0.111), vec3(0.025,-0.061,0.106), 0.0022));
+  sk = smax(sk, -groove, 0.002);
+  // neck
+  sk = smin(sk, sdCapT(q, vec3(0.,-0.1,-0.012), vec3(0.,-0.23,-0.02), 0.047, 0.055), 0.03);
+  float lipm = sdEll(q - vec3(0.,-0.058,0.099), vec3(0.026,0.0105,0.011));
+  r = U(r, sk, (lipm < 0.002 && q.z > 0.09) ? M_LIP : M_SKIN);
+  // eyeballs
+  r = U(r, min(length(q-EYEL)-0.0188, length(q-EYER)-0.0188), M_EYE);
+  // eyebrows: left raised (side-eye), right flat
+  float br = min(sdCapT(q, vec3(-0.058,0.06,0.088), vec3(-0.014,0.07,0.103), 0.0045, 0.006),
+                 sdCapT(q, vec3( 0.058,0.047,0.088), vec3( 0.014,0.05,0.103), 0.0045, 0.006));
+  r = U(r, br, M_HAIR);
+  // hair: short messy, lifted by the fall
+  float cap = sdEll(q - vec3(0.,0.036,-0.014), vec3(0.093,0.088,0.106));
+  float hl = q.y - (0.06*smoothstep(-0.02,0.07,q.z) - 0.035*(1.-smoothstep(-0.09,-0.01,q.z)));
+  cap = max(cap, -hl);
+  for (int i=ZERO;i<11;i++){ float fi=float(i); float a = (fi/10.)*2.6 - 1.3;
+    vec3 b = vec3(sin(a)*0.062, 0.085 - 0.01*abs(sin(a)), 0.03*cos(fi*1.7) - 0.01);
+    vec3 t = b + vec3(sin(a)*0.035 + 0.01*hash(fi), 0.045 + 0.03*hash(fi+3.), -0.035 + 0.05*hash(fi+7.));
+    cap = smin(cap, sdCapT(q, b, t, 0.026, 0.006), 0.018); }
+  cap += 0.0018*sin(q.x*260. + q.z*90.)*sin(q.y*180. - q.z*60.);
+  r = U(r, cap, M_HAIR);
+  // glasses: rectangular frames, knocked crooked
+  vec3 g = q - vec3(0.,0.024,0.109); g.xy = rot(0.09)*g.xy;
+  float fr = 1e9;
+  for (int i=ZERO;i<2;i++){ float sx = i==0?-1.:1.;
+    vec2 c = g.xy - vec2(sx*0.034, 0.);
+    fr = min(fr, max(abs(sdRect2(c, vec2(0.026,0.017), 0.007)) - 0.0024, abs(g.z) - 0.0025));
+    fr = min(fr, sdCap(g, vec3(sx*0.06,0.006,0.), vec3(sx*0.087,0.008,-0.09), 0.0022)); }
+  fr = min(fr, sdCap(g, vec3(-0.009,0.006,0.002), vec3(0.009,0.006,0.002), 0.0022));
+  r = U(r, fr, M_FRAME);
+  return r;
+}
+
+vec2 steve(vec3 p){
+  vec2 r = vec2(1e9,0.);
+  // head (only near it)
+  vec3 hq = p - HEADC;
+  float hb = length(hq) - 0.2;
+  if (hb < 0.05) r = head(hq); else r = vec2(hb, 0.);
+  // torso + shirt
+  float tor = sdCapT(p, vec3(0.,0.93,0.), vec3(0.,1.3,0.025), 0.135, 0.148);
+  tor = smin(tor, sdEll(p - vec3(0.,1.3,0.025), vec3(0.178,0.125,0.108)), 0.06);
+  tor = smin(tor, min(sdEll(p-vec3(-0.168,1.395,0.005), vec3(0.07,0.05,0.062)), sdEll(p-vec3(0.168,1.395,0.005), vec3(0.07,0.05,0.062))), 0.045);
+  tor += 0.004*sin(p.y*70. + sin(p.x*25.)*2.)*smoothstep(1.35,0.95,p.y);   // fabric folds
+  // arms: right hand grips the car's side rail, left holds the coffee up
+  vec3 sR=vec3(0.19,1.4,0.), eR=vec3(0.44,1.17,-0.03), wR=vec3(0.69,1.06,-0.09);
+  vec3 sL=vec3(-0.19,1.4,0.), eL=vec3(-0.38,1.19,0.1), wL=vec3(-0.335,1.43,0.2);
+  float upper = min(sdCapT(p, sR, eR, 0.056, 0.046), sdCapT(p, sL, eL, 0.056, 0.046));
+  float cuff = min(sdCapT(p, mix(sR,eR,0.82), eR + (eR-sR)*0.06, 0.052, 0.05), sdCapT(p, mix(sL,eL,0.82), eL + (eL-sL)*0.06, 0.052, 0.05));
+  tor = smin(tor, min(upper, cuff), 0.03);
+  r = U(r, tor, M_SHIRT);
+  // collar
+  float col = length(vec2(length(p.xz - vec2(0.,0.008)) - 0.062, p.y - 1.455)) - 0.013;
+  col = max(col, -(p.z + 0.02));
+  r = U(r, col, M_SHIRT);
+  // tie: knot + blade flipped up over the shoulder
+  r = U(r, sdEll(p - vec3(0.,1.425,0.088), vec3(0.019,0.022,0.014)), M_TIE);
+  vec3 t0=vec3(0.,1.41,0.095), t1=vec3(0.035,1.5,0.14), t2=vec3(0.115,1.575,0.12), t3=vec3(0.2,1.6,0.05);
+  float tie = min(sdFlat(p, t0, t1, 0.018, 0.026, normalize(vec3(0.,-0.45,1.))), sdFlat(p, t1, t2, 0.026, 0.034, normalize(vec3(-0.3,-0.6,1.))));
+  tie = min(tie, sdFlat(p, t2, t3, 0.034, 0.012, normalize(vec3(-0.2,1.,0.6))));
+  r = U(r, tie, M_TIE);
+  // forearms (sleeves rolled)
+  float fa = min(sdCapT(p, eR, wR, 0.04, 0.031), sdCapT(p, eL, wL, 0.04, 0.031));
+  // hands
+  float hR = sdEll(p - vec3(0.725,1.075,-0.1), vec3(0.046,0.042,0.052));
+  hR = smin(hR, sdCapT(p, vec3(0.7,1.1,-0.07), vec3(0.745,1.11,-0.04), 0.014, 0.011), 0.01);   // thumb
+  float hL = sdEll(p - vec3(-0.335,1.47,0.205), vec3(0.042,0.05,0.034));
+  hL = smin(hL, sdCapT(p, vec3(-0.31,1.46,0.235), vec3(-0.302,1.505,0.248), 0.013, 0.011), 0.01);
+  r = U(r, smin(fa, min(hR, hL), 0.025), M_SKIN);
+  // belt + trousers
+  float pel = sdEll(p - vec3(0.,0.89,0.), vec3(0.158,0.1,0.112));
+  float lg = min(sdCapT(p, vec3(-0.095,0.86,0.), vec3(-0.14,0.47,0.13), 0.078, 0.058), sdCapT(p, vec3(-0.14,0.47,0.13), vec3(-0.13,0.08,-0.01), 0.056, 0.042));
+  lg = min(lg, min(sdCapT(p, vec3(0.095,0.86,0.), vec3(0.175,0.46,0.1), 0.078, 0.058), sdCapT(p, vec3(0.175,0.46,0.1), vec3(0.17,0.08,-0.05), 0.056, 0.042)));
+  float pants = smin(pel, lg, 0.05);
+  pants += 0.003*sin(p.y*60. + p.x*30.);
+  r = U(r, pants, M_PANTS);
+  r = U(r, max(abs(p.y - 0.955) - 0.02, min(tor, pants) - 0.006), M_BELT);
+  // shoes
+  r = U(r, min(sdEll(p - vec3(-0.13,0.04,0.04), vec3(0.052,0.045,0.13)), sdEll(p - vec3(0.17,0.04,0.0), vec3(0.052,0.045,0.13))), M_SHOE);
+  // coffee cup (tilted) + coffee jumping out of it
+  vec3 cq = p - vec3(-0.335,1.5,0.215); cq.xy = rot(0.28)*cq.xy;
+  float rr = mix(0.031, 0.042, clamp((cq.y + 0.07)/0.14, 0., 1.));
+  float cup = max(length(cq.xz) - rr, abs(cq.y) - 0.07);
+  cup = max(cup, -max(length(cq.xz) - rr + 0.0028, -(cq.y + 0.064)));
+  r = U(r, cup, abs(cq.y + 0.005) < 0.03 ? M_SLEEVE : M_CUP);
+  // lid flying off
+  vec3 lq = p - vec3(-0.27,1.73,0.2); lq.xy = rot(-0.7)*lq.xy; lq.yz = rot(0.4)*lq.yz;
+  r = U(r, max(length(lq.xz) - 0.045, abs(lq.y) - 0.006) - 0.002, M_CUP);
+  // coffee: a column leaving the cup, breaking into drops
+  vec3 top = vec3(-0.355,1.57,0.215);
+  float cf = 1e9;
+  for (int i=ZERO;i<7;i++){ float fi=float(i);
+    vec3 c = top + vec3(-0.012*fi + 0.003*fi*fi, 0.032*fi - 0.0012*fi*fi, 0.004*fi);
+    cf = smin(cf, length(p - c) - (0.024 - 0.0026*fi), 0.022); }
+  for (int i=ZERO;i<9;i++){ float fi=float(i);
+    vec3 c = top + vec3((hash(fi)-0.5)*0.22, 0.12 + hash(fi+2.)*0.16, (hash(fi+4.)-0.5)*0.12);
+    cf = min(cf, sdEll(p - c, vec3(0.008,0.011,0.008)*(0.6+0.8*hash(fi+6.)))); }
+  r = U(r, cf, M_COFFEE);
+  return r;
+}
+
+// ---------- the car (local origin: car floor top centre at front edge) ----------
+vec2 car(vec3 p){
+  vec2 r = vec2(1e9,0.);
+  r = U(r, sdRBox(p - vec3(0.,-0.06,-0.85), vec3(0.82,0.06,0.85), 0.012), M_OAK);
+  r = U(r, sdRBox(p - vec3(-0.8,0.5,-0.85), vec3(0.022,0.5,0.85), 0.006), M_OAK);
+  r = U(r, sdRBox(p - vec3( 0.8,0.5,-0.85), vec3(0.022,0.5,0.85), 0.006), M_OAK);
+  r = U(r, sdRBox(p - vec3(0.,0.5,-1.68), vec3(0.82,0.5,0.022), 0.006), M_OAK);
+  // brass hand rails on top of the walls
+  r = U(r, min(sdCap(p, vec3(-0.79,1.03,-1.66), vec3(-0.79,1.03,-0.02), 0.022), sdCap(p, vec3(0.79,1.03,-1.66), vec3(0.79,1.03,-0.02), 0.022)), M_BRASS);
+  r = U(r, sdCap(p, vec3(-0.79,1.03,-1.66), vec3(0.79,1.03,-1.66), 0.022), M_BRASS);
+  // corner posts + top frame
+  float posts = 1e9;
+  for (int i=ZERO;i<2;i++){ float sx = i==0?-1.:1.;
+    posts = min(posts, sdRBox(p - vec3(sx*0.8, 1.23, 0.0), vec3(0.045,1.23,0.045), 0.008));
+    posts = min(posts, sdRBox(p - vec3(sx*0.8, 1.23, -1.7), vec3(0.045,1.23,0.045), 0.008));
+    posts = min(posts, sdRBox(p - vec3(sx*0.8, 2.44, -0.85), vec3(0.045,0.045,0.85), 0.008)); }
+  r = U(r, posts, M_OAK);
+  // steel crosshead with rivets
+  vec3 q = p - vec3(0.,2.45,-0.85);
+  float ch = sdRBox(q, vec3(0.86,0.075,0.085), 0.012);
+  ch = min(ch, length(vec3(mod(q.x+0.06,0.12)-0.06, q.y, q.z-0.088)) - 0.011);
+  r = U(r, ch, M_STEEL);
+  // leaf (wagon) spring, now flattened = the brake has fired
+  float leaf = 1e9;
+  for (int i=ZERO;i<4;i++){ float fi=float(i);
+    float R = 1.9 + fi*0.05; vec2 c = vec2(0., 0.075 + 0.17 - fi*0.022 - R);
+    float arc = abs(length(q.xy - c) - R) - 0.009;
+    arc = max(arc, abs(q.x) - (0.62 - fi*0.13)); arc = max(arc, abs(q.z) - 0.055); arc = max(arc, c.y + R*0.9 - q.y);
+    leaf = min(leaf, arc); }
+  leaf = min(leaf, sdRBox(q - vec3(0.,0.2,0.), vec3(0.05,0.05,0.07), 0.008));
+  r = U(r, leaf, M_STEEL);
+  // pawls biting the rail teeth + links
+  for (int i=ZERO;i<2;i++){ float sx = i==0?-1.:1.;
+    vec3 c = q - vec3(sx*0.8, 0.0, 0.);
+    float pv = max(length(c.xy) - 0.05, abs(c.z) - 0.07);
+    vec3 d = c; d.x *= sx; d.xy = rot(-0.45)*d.xy;
+    float claw = sdRBox(d - vec3(0.075, 0.0, 0.), vec3(0.085, 0.024, 0.05), 0.01);
+    claw = smax(claw, -(d.y + 0.03 - (d.x - 0.12)*1.2), 0.005);   // chisel tip
+    r = U(r, min(pv, claw), M_BRASS);
+    r = U(r, sdCap(q, vec3(sx*0.6, 0.09, 0.), vec3(sx*0.78, 0.035, 0.), 0.013), M_STEEL); }
+  // lower rope stub, frayed
+  vec3 rp = q - vec3(0.,0.25,0.);
+  float rope = sdCap(rp, vec3(0.), vec3(0.015,1.22,0.), 0.03);
+  rope += 0.0055*sin(atan(rp.z, rp.x - 0.007)*3. + rp.y*70.);
+  for (int i=ZERO;i<7;i++){ float fi=float(i); float a=fi*0.9;
+    rope = smin(rope, sdCapT(rp, vec3(0.015,1.2,0.), vec3(0.015+0.08*cos(a), 1.3+0.05*hash(fi), 0.08*sin(a)), 0.011, 0.003), 0.01); }
+  r = U(r, rope, M_ROPE);
+  return r;
+}
+
+vec2 shaft(vec3 p){
+  vec2 r = vec2(1e9,0.);
+  float ax = abs(p.x);
+  // floor slabs (cut), every 3.6 m
+  float sy = p.y - 3.6*floor(p.y/3.6 + 0.5);
+  float slab = max(max(abs(sy) - 0.16, 1.2 - ax), max(p.z - 0.5, -2.9 - p.z));
+  r = U(r, slab, M_CONC);
+  // shaft side walls (cut at the front)
+  r = U(r, max(abs(ax - 1.1) - 0.1, max(p.z - 0.5, -1.9 - p.z)), M_CONC);
+  // shaft back wall (brick)
+  r = U(r, max(abs(p.z + 1.88) - 0.06, ax - 1.2), M_BRICK);
+  // rooms behind the cut, two paint colours per floor
+  float lvl = floor(p.y/3.6);
+  r = U(r, max(abs(p.z + 2.8) - 0.1, 1.2 - ax), mod(lvl + step(0.,p.x),2.)<0.5 ? M_WALLA : M_WALLB);
+  // painted floor number band on the back wall
+  // guide rails with ratchet teeth
+  float body = sdBox(vec3(ax - 0.96, p.y - 6., p.z + 0.85), vec3(0.045, 12., 0.075));
+  float f = fract(p.y / 0.14);
+  float face = 0.915 - 0.055*f;
+  float teeth = max((face - ax)*0.85, abs(p.z + 0.85) - 0.055);
+  teeth = max(teeth, ax - 1.0);
+  r = U(r, min(body, teeth), M_RAIL);
+  // rail brackets
+  float bk = sdRBox(vec3(ax - 1.03, mod(p.y, 1.2) - 0.6, p.z + 0.85), vec3(0.05, 0.06, 0.11), 0.01);
+  r = U(r, bk, M_STEEL);
+  // caged work lamp on the left wall
+  vec3 lp = p - vec3(-0.94, 4.0, 0.15);
+  r = U(r, length(lp) - 0.045, M_LAMP);
+  float cage = abs(length(lp) - 0.065) - 0.004;
+  cage = max(cage, abs(sin(atan(lp.z, lp.y)*4.)) - 0.25);
+  r = U(r, min(cage, sdRBox(lp - vec3(-0.05,0.,0.), vec3(0.025,0.04,0.04), 0.005)), M_CAGE);
+  return r;
+}
+
+vec2 rope2(vec3 p){
+  vec3 a = vec3(0.05, 4.4, -0.85), b = vec3(0.2, 4.95, -0.82), c = vec3(0.08, 6.0, -0.85), d = vec3(0., 14., -0.85);
+  float rr = min(min(sdCap(p,a,b,0.03), sdCap(p,b,c,0.03)), sdCap(p,c,d,0.03));
+  rr += 0.0055*sin(atan(p.z+0.85, p.x - 0.05)*3. - p.y*70.);
+  for (int i=ZERO;i<7;i++){ float fi=float(i); float aa=fi*0.9+0.4;
+    rr = smin(rr, sdCapT(p, a+vec3(0.,0.02,0.), a + vec3(0.08*cos(aa), -0.1-0.05*hash(fi+3.), 0.08*sin(aa)), 0.011, 0.003), 0.01); }
+  return vec2(rr, M_ROPE);
+}
+
+vec2 map(vec3 p){
+  vec2 r = shaft(p);
+  vec2 q = rope2(p); if (q.x < r.x) r = q;
+  vec3 cp = p - vec3(0., YC, 0.);
+  float cb = sdBox(cp - vec3(0.,1.9,-0.85), vec3(0.95,2.0,0.95));
+  if (cb < r.x) {
+    if (cb > 0.1) r = U(r, cb, 0.);
+    else {
+      q = car(cp); if (q.x < r.x) r = q;
+      vec3 sp = p - STEVE;
+      float sb = sdBox(sp - vec3(0.,1.0,0.05), vec3(0.85,1.0,0.4));
+      if (sb < r.x) { if (sb > 0.06) r = U(r, sb, 0.); else { q = steve(sp); if (q.x < r.x) r = q; } }
+    }
+  }
+  return r;
+}
+
+vec3 normal(vec3 p, float t){ float h = 0.0004 + 0.00015*t; vec3 n = vec3(0.);
+  for (int i=ZERO;i<4;i++){ vec3 e = 0.5773*(2.0*vec3((((i+3)>>1)&1),((i>>1)&1),(i&1))-1.0); n += e*map(p + e*h).x; }
+  return normalize(n); }
+float march(vec3 ro, vec3 rd, float tmax, out vec2 hit){
+  float t = 0.;
+  for (int i=ZERO;i<300;i++){ hit = map(ro + rd*t); if (hit.x < 0.00025*(1.+t)) return t; t += hit.x*0.8; if (t > tmax) break; }
+  return -1.;
+}
+float vis(vec3 ro, vec3 rd, float tmax){
+  float t = 0.004;
+  for (int i=ZERO;i<140;i++){ float h = map(ro + rd*t).x; if (h < 0.0004) return 0.; t += h*0.9; if (t > tmax) return 1.; }
+  return 1.;
+}
+
+// ---------- shading ----------
+struct Mat { vec3 c; float rough; float metal; float spec; float sss; vec3 emit; };
+
+float brickH(vec2 q){ q *= vec2(1./0.225, 1./0.075); float row=floor(q.y); q.x += 0.5*mod(row,2.);
+  vec2 f = fract(q); return smoothstep(0.,0.06,f.x)*smoothstep(1.,0.94,f.x)*smoothstep(0.,0.13,f.y)*smoothstep(1.,0.87,f.y); }
+
+Mat getMat(float m, vec3 p, inout vec3 n){
+  Mat M; M.c=vec3(0.7); M.rough=0.6; M.metal=0.; M.spec=0.04; M.sss=0.; M.emit=vec3(0.);
+  vec3 sp = p - STEVE;
+  if (m==M_CONC){
+    float g = fbm(p.xy*9. + p.z*3.);
+    if (n.z > 0.7) M.c = vec3(0.66,0.63,0.58)*(0.8+0.3*g);              // raw cut face
+    else if (n.y > 0.7) { float pl=fract(p.x*2.6); M.c = vec3(0.42,0.27,0.16)*(0.8+0.25*fbm(vec2(p.x*2.6,p.z*30.)))*(0.7+0.3*smoothstep(0.,0.04,pl)); M.rough=0.35; }
+    else if (n.y < -0.7) M.c = vec3(0.82);
+    else M.c = vec3(0.5,0.49,0.47)*(0.75+0.35*g);                         // bare shaft concrete
+    M.rough = 0.8;
+    float stain = smoothstep(0.55,0.8,fbm(vec2(p.x*1.3+p.z, p.y*0.6)*2.)); M.c *= 1. - 0.35*stain;
+  }
+  else if (m==M_BRICK){
+    vec2 q = p.xy; float h = brickH(q); vec2 id = floor(q*vec2(1./0.225,1./0.075));
+    float hx = brickH(q+vec2(0.004,0.)) - h, hy = brickH(q+vec2(0.,0.004)) - h;
+    n = normalize(n - vec3(hx, hy, 0.)*0.6);
+    float v = hash2(id); M.c = mix(vec3(0.58,0.56,0.52), vec3(0.42,0.17,0.11)*(0.75+0.5*v), h) * (0.8+0.3*fbm(q*25.));
+    M.c *= mix(0.35, 1., smoothstep(-0.5, 3.5, p.y));    // shaft gets darker going down
+    M.rough = 0.85;
+  }
+  else if (m==M_RAIL){ M.c = vec3(0.23,0.24,0.26); M.metal = 0.85; M.rough = 0.38 + 0.25*fbm(p.yz*30.);
+    float rust = smoothstep(0.55,0.75,fbm(p.yz*8. + 3.)); M.c = mix(M.c, vec3(0.35,0.16,0.07), rust); M.metal *= 1.-rust; M.rough = mix(M.rough, 0.9, rust); }
+  else if (m==M_STEEL){ M.c = vec3(0.3,0.31,0.33); M.metal = 0.9; M.rough = 0.32 + 0.15*fbm(p.xy*40.); }
+  else if (m==M_BRASS){ M.c = vec3(0.86,0.62,0.3); M.metal = 1.; M.rough = 0.22 + 0.12*fbm(p.xy*50.); }
+  else if (m==M_OAK){ vec3 lp = p - vec3(0.,YC,0.);
+    bool flr = abs(n.y) > 0.5;
+    float along = flr ? lp.z : (abs(n.x) > 0.5 ? lp.z : lp.x);
+    float across = flr ? lp.x : lp.y;
+    float plank = floor(across*6.5); float g = fract(across*6.5);
+    float grain = fbm(vec2(along*3. + plank*7.1, across*90.));
+    M.c = vec3(0.55,0.34,0.18)*(0.7+0.45*grain)*(0.85+0.3*hash(plank));
+    M.c *= 0.55 + 0.45*smoothstep(0.,0.035,g)*smoothstep(1.,0.965,g);
+    M.rough = 0.45; M.spec = 0.05; }
+  else if (m==M_ROPE){ M.c = vec3(0.62,0.5,0.32)*(0.8+0.25*sin(p.y*140. + atan(p.z+0.85,p.x)*3.)); M.rough = 0.9; }
+  else if (m==M_SKIN){
+    vec3 hq = sp - HEADC;
+    M.c = vec3(0.78,0.55,0.43); M.rough = 0.42; M.spec = 0.028; M.sss = 1.;
+    M.c *= 0.94 + 0.08*fbm(hq.xy*180.);                                  // pores / blotches
+    // stubble on jaw, chin, upper lip
+    float beard = smoothstep(-0.01,-0.035,hq.y) * smoothstep(-0.04,0.02,hq.z) * step(length(hq), 0.13);
+    beard = max(beard, smoothstep(0.012,0.,abs(hq.y+0.044)) * smoothstep(0.03,0.0,abs(hq.x)-0.008) * step(0.08,hq.z));
+    float dots = smoothstep(0.35,0.75, noise(hq.xy*900. + hq.z*500.));
+    M.c = mix(M.c, M.c*0.55, beard*(0.45 + 0.4*dots));
+    // tired under-eyes, rosy nose
+    M.c = mix(M.c, vec3(0.62,0.42,0.38), 0.35*smoothstep(0.022,0.0,length((hq - vec3(sign(hq.x)*0.034,-0.008,0.085))*vec3(1.,1.8,1.))));
+    M.c = mix(M.c, vec3(0.85,0.48,0.42), 0.3*smoothstep(0.03,0.0,length(hq - vec3(0.,-0.024,0.115))));
+  }
+  else if (m==M_LIP){ M.c = vec3(0.66,0.4,0.36); M.rough = 0.35; M.sss = 1.; }
+  else if (m==M_EYE){
+    vec3 hq = sp - HEADC; vec3 e = hq.x < 0. ? EYEL : EYER;
+    vec3 d = normalize(hq - e); vec3 gaze = normalize(vec3(0.42, 0.06, 1.));     // side-eye to camera
+    float ca = dot(d, gaze);
+    float ang = acos(clamp(ca,-1.,1.));
+    vec3 white = vec3(0.92,0.9,0.86) * mix(1., 0.85, smoothstep(0.6,1.4,ang));
+    float iris = smoothstep(0.42,0.39,ang), pupil = smoothstep(0.15,0.13,ang);
+    float fib = 0.75 + 0.25*sin(atan(dot(d,cross(gaze,vec3(0,1,0))), d.y)*40.);
+    vec3 ic = mix(vec3(0.24,0.33,0.2), vec3(0.45,0.36,0.18), smoothstep(0.38,0.1,ang)) * fib;
+    M.c = mix(white, ic, iris); M.c = mix(M.c, vec3(0.01), pupil);
+    M.c *= mix(1.0, 0.5, smoothstep(0.38,0.42,ang)*iris);
+    M.rough = 0.04; M.spec = 0.06; }
+  else if (m==M_HAIR){ M.c = vec3(0.075,0.05,0.035)*(0.8+0.4*noise((sp-HEADC).xz*400.)); M.rough = 0.35; M.spec = 0.05; }
+  else if (m==M_FRAME){ M.c = vec3(0.02); M.rough = 0.15; M.spec = 0.06; }
+  else if (m==M_SHIRT){ M.c = vec3(0.64,0.72,0.82)*(0.9+0.1*sin(sp.x*900.)*sin(sp.y*900.)); M.rough = 0.85; M.sss = 0.3;
+    M.c *= 0.92 + 0.12*fbm(sp.xy*30.); }
+  else if (m==M_PANTS){ M.c = vec3(0.12,0.13,0.15)*(0.85+0.25*fbm(sp.xy*60.)); M.rough = 0.8; }
+  else if (m==M_BELT){ M.c = vec3(0.13,0.07,0.04); M.rough = 0.3; M.spec = 0.05; }
+  else if (m==M_SHOE){ M.c = vec3(0.24,0.12,0.06); M.rough = 0.25; M.spec = 0.06; }
+  else if (m==M_TIE){ float s = fract((sp.x + sp.y)*28.); M.c = mix(vec3(0.42,0.05,0.07), vec3(0.75,0.6,0.25), step(0.82, s)); M.rough = 0.5; M.spec = 0.05; }
+  else if (m==M_CUP){ M.c = vec3(0.9,0.88,0.84); M.rough = 0.6; }
+  else if (m==M_SLEEVE){ M.c = vec3(0.55,0.38,0.22)*(0.85+0.2*fbm(sp.xy*80.)); M.rough = 0.9; }
+  else if (m==M_COFFEE){ M.c = vec3(0.09,0.04,0.015); M.rough = 0.04; M.spec = 0.05; M.sss = 0.6; }
+  else if (m==M_LAMP){ M.c = vec3(1.); M.emit = vec3(1.,0.72,0.4)*18.; }
+  else if (m==M_CAGE){ M.c = vec3(0.12); M.metal = 0.8; M.rough = 0.4; }
+  else if (m==M_WALLA){ M.c = vec3(0.55,0.32,0.26)*(0.9+0.1*fbm(p.xy*6.)); M.rough = 0.9; }
+  else if (m==M_WALLB){ M.c = vec3(0.24,0.36,0.38)*(0.9+0.1*fbm(p.xy*6.)); M.rough = 0.9; }
+  return M;
+}
+
+// lights
+const vec3 LAMP = vec3(-0.94, 4.0, 0.15);
+const vec3 LAMPC = vec3(1.0, 0.68, 0.38) * 2.6;
+const vec3 KEYD = vec3(-0.45, 0.55, 0.7);            // soft key from the open landing (front-left)
+const vec3 KEYC = vec3(0.72, 0.8, 0.95) * 1.5;
+const vec3 SKYC = vec3(0.16, 0.2, 0.28);             // cool light falling down the shaft
+const vec3 C1 = vec3(-0.87, YC+2.45, -0.85), C2 = vec3(0.87, YC+2.45, -0.85);   // claw contacts (sparks)
+
+vec3 sampleCone(vec3 d, float a){ vec3 u = normalize(cross(abs(d.y)<0.99?vec3(0,1,0):vec3(1,0,0), d)); vec3 v = cross(d,u);
+  float r = a*sqrt(rnd()), t = 6.2831853*rnd(); return normalize(d + u*r*cos(t) + v*r*sin(t)); }
+vec3 cosHemi(vec3 n){ float r=sqrt(rnd()), t=6.2831853*rnd(); vec3 u=normalize(cross(abs(n.y)<0.99?vec3(0,1,0):vec3(1,0,0), n)); vec3 v=cross(n,u);
+  return normalize(u*r*cos(t) + v*r*sin(t) + n*sqrt(max(0.,1.-r*r))); }
+
+vec3 brdf(Mat M, vec3 n, vec3 v, vec3 l, vec3 lc){
+  float ndl = dot(n,l);
+  vec3 dif;
+  if (M.sss > 0.){ float w = 0.5*M.sss; float wr = max((ndl + w)/(1.+w), 0.);   // wrap + warm terminator = skin
+    dif = M.c * (vec3(wr) + vec3(0.25,0.05,0.02)*M.sss*smoothstep(0.,0.6,wr)*smoothstep(1.,0.2,wr)); }
+  else dif = M.c * max(ndl,0.);
+  dif *= (1. - M.metal);
+  vec3 h = normalize(l + v); float nh = max(dot(n,h),0.), nv = max(dot(n,v),1e-3), nl = max(ndl,0.);
+  float a = max(M.rough*M.rough, 0.002), a2 = a*a; float dd = nh*nh*(a2-1.)+1.; float D = a2/(3.14159*dd*dd);
+  float k = (M.rough+1.)*(M.rough+1.)/8.; float G = (nv/(nv*(1.-k)+k))*(nl/(nl*(1.-k)+k));
+  vec3 F0 = mix(vec3(M.spec), M.c, M.metal); vec3 F = F0 + (1.-F0)*pow(1.-max(dot(h,v),0.),5.);
+  vec3 spec = D*G*F/(4.*nv*max(nl,1e-3)) * nl;
+  return (dif + spec*3.14159) * lc;
+}
+
+vec3 direct(vec3 p, vec3 n, vec3 v, Mat M){
+  vec3 col = vec3(0.);
+  for (int i=ZERO;i<2;i++){
+    vec3 l, lc; float dl;
+    if (i==0){ vec3 lp = LAMP + (vec3(rnd(),rnd(),rnd())-0.5)*0.09; l = lp - p; dl = length(l); l /= dl; lc = LAMPC / (dl*dl*0.6 + 0.25); dl -= 0.08; }
+    else { l = sampleCone(normalize(KEYD), 0.14); lc = KEYC; dl = 6.; }
+    if (dot(n,l) > -0.3) col += brdf(M, n, v, l, lc * vis(p + n*0.002, l, dl));
+  }
+  for (int k=ZERO;k<2;k++){ vec3 c = k==0?C1:C2; vec3 sl = c - p; float d2 = dot(sl,sl);
+    col += brdf(M, n, v, normalize(sl), vec3(1.,0.5,0.15) * 0.22 / (d2 + 0.03)); }
+  return col;
+}
+
+// spark streaks: analytic glow along the camera ray
+float segDist(vec3 ro, vec3 rd, float tmax, vec3 a, vec3 b){
+  vec3 ba=b-a, oa=ro-a; float d1=dot(rd,ba), d2=dot(ba,ba), d3=dot(rd,oa), d4=dot(ba,oa);
+  float den = d2 - d1*d1; float s = clamp((d1*d3 - d4)/max(den,1e-6), 0., 1.);
+  float t = clamp(dot(a + ba*s - ro, rd), 0., tmax); vec3 pr = ro+rd*t; s = clamp(dot(pr-a,ba)/d2,0.,1.);
+  return length(pr - (a+ba*s)); }
+vec3 sparks(vec3 ro, vec3 rd, float tmax){
+  vec3 acc = vec3(0.);
+  for (int k=ZERO;k<2;k++){ float sx = k==0?-1.:1.; vec3 C = k==0?C1:C2;
+    for (int i=ZERO;i<26;i++){ float fi=float(i)+float(k)*41.;
+      vec3 dir = normalize(vec3(-sx*(0.25+0.6*hash(fi+5.)), -0.5 + 1.1*hash(fi+9.), 0.3+0.9*hash(fi+2.)));
+      float st = 0.02 + hash(fi+3.)*0.5, len = 0.05 + hash(fi+4.)*0.2;
+      vec3 a = C + dir*st, b = C + dir*(st+len); a.y -= 0.25*st*st; b.y -= 0.25*(st+len)*(st+len);
+      float d = segDist(ro, rd, tmax, a, b); float w = 1. - st*1.4;
+      acc += (vec3(1.,0.45,0.1)*exp(-d*d/0.00025)*0.8 + vec3(1.,0.9,0.65)*exp(-d*d/0.000018)*3.)*w; }
+    float d = segDist(ro, rd, tmax, C, C+vec3(0.,0.001,0.));
+    acc += vec3(1.,0.5,0.12)*exp(-d*d/0.01)*0.7 + vec3(1.,0.92,0.75)*exp(-d*d/0.0006)*3.; }
+  // lamp halo
+  float d = segDist(ro, rd, tmax, LAMP, LAMP+vec3(0.,0.001,0.));
+  acc += vec3(1.,0.7,0.4)*exp(-d*d/0.02)*0.35;
+  return acc;
+}
+
+vec3 sky(vec3 d){ return SKYC * (0.6 + 0.8*max(d.y,0.)); }
+
+void main(){
+  gs = uint(gl_FragCoord.x)*1973u + uint(gl_FragCoord.y)*9277u + uSeed*26699u + 1u; rnd(); rnd();
+  vec2 fc = gl_FragCoord.xy + vec2(rnd(), rnd()) - 0.5;
+  vec2 uv = (2.*fc - uRes)/uRes.y;
+  vec3 ww = normalize(CAMTGT - CAMPOS), uu = normalize(cross(ww, vec3(0,1,0))), vv = cross(uu, ww);
+  float fl = 1./tan(radians(FOV)*0.5);
+  vec3 rd = normalize(uv.x*uu + uv.y*vv + fl*ww);
+  // thin lens depth of field
+  vec3 fp = CAMPOS + rd * (FOCUS / dot(rd, ww));
+  float lr = APERTURE*sqrt(rnd()), la = 6.2831853*rnd();
+  vec3 ro = CAMPOS + (uu*cos(la) + vv*sin(la))*lr;
+  rd = normalize(fp - ro);
+
+  vec3 col = vec3(0.), thr = vec3(1.); float tFirst = 30.; oN = vec4(0.,0.,0.,30.); oA = vec4(1.);
+  for (int b=ZERO; b<2; b++){
+    vec2 h; float t = march(ro, rd, b==0 ? 30. : 8., h);
+    if (b==0) tFirst = t < 0. ? 30. : t;
+    if (t < 0.) { col += thr*sky(rd); break; }
+    vec3 p = ro + rd*t, n = normal(p, t), v = -rd;
+    Mat M = getMat(h.y, p, n);
+    if (b==0){ oN = vec4(n, t); oA = vec4(dot(M.emit,vec3(1.)) > 0. ? vec3(1.) : M.c, 1.); }
+    if (dot(M.emit, vec3(1.)) > 0.) { col += thr*M.emit*(b==0 ? 1. : 0.15); break; }
+    col += thr*direct(p, n, v, M) * (b==0 ? 1. : 1. - M.metal*0.5);
+    if (b==1) { col += thr*M.c*SKYC*0.5; break; }
+    // next ray: glossy reflection or diffuse bounce
+    vec3 F0 = mix(vec3(M.spec), M.c, M.metal);
+    vec3 F = F0 + (1.-F0)*pow(1.-max(dot(n,v),0.),5.);
+    float pSpec = M.rough < 0.45 ? clamp(max(F.r,max(F.g,F.b))*(1.-M.rough)*1.5 + M.metal*0.6, 0.15, 0.9) : 0.;
+    ro = p + n*0.003;
+    if (rnd() < pSpec){ vec3 rr = reflect(rd, n); rd = normalize(rr + (vec3(rnd(),rnd(),rnd())-0.5)*M.rough*M.rough*1.5); thr *= F*(1.-M.rough)/pSpec; }
+    else { rd = cosHemi(n); thr *= M.c*(1.-M.metal)*(M.sss > 0. ? vec3(1.05,0.95,0.9) : vec3(1.))/(1.-pSpec); }
+  }
+  col += sparks(CAMPOS, normalize(fp - CAMPOS), tFirst);
+  o = vec4(col, 1.);
+}`;
+
+const DEN = `#version 300 es
+precision highp float;
+uniform sampler2D I; uniform sampler2D G; uniform sampler2D A; uniform sampler2D C;
+uniform float uN; uniform int uStep; uniform int uMode; out vec4 o;
+// edge-aware a-trous wavelet filter on demodulated light (textures stay sharp: they live in the albedo buffer)
+void main(){ ivec2 p = ivec2(gl_FragCoord.xy); ivec2 sz = textureSize(A,0);
+  vec3 alb = max(texelFetch(A,p,0).rgb/uN, vec3(0.03));
+  if (uMode==0){ o = vec4(texelFetch(C,p,0).rgb/uN/alb, 1.); return; }
+  vec4 g0 = texelFetch(G,p,0)/uN; vec3 n0 = g0.xyz/max(length(g0.xyz),1e-4); float d0 = g0.w;
+  vec3 c0 = texelFetch(I,p,0).rgb; float l0 = dot(c0, vec3(0.2126,0.7152,0.0722));
+  float kw[3] = float[3](0.375, 0.25, 0.0625);
+  vec3 sum = vec3(0.); float ws = 0.;
+  for (int j=-2;j<=2;j++) for (int i=-2;i<=2;i++){
+    ivec2 q = clamp(p + ivec2(i,j)*uStep, ivec2(0), sz-1);
+    vec3 c = texelFetch(I,q,0).rgb; vec4 g = texelFetch(G,q,0)/uN; vec3 n = g.xyz/max(length(g.xyz),1e-4);
+    float wn = pow(max(dot(n0,n),0.), 48.);
+    float wd = exp(-abs(g.w-d0)/(0.012*d0*float(uStep) + 0.002));
+    float wl = exp(-abs(dot(c,vec3(0.2126,0.7152,0.0722)) - l0)/(0.45*(l0+0.03)*sqrt(float(uStep))));
+    float w = kw[abs(i)]*kw[abs(j)]*wn*wd*wl; sum += c*w; ws += w; }
+  vec3 r = sum/max(ws,1e-5);
+  if (uMode==2) r *= alb;
+  o = vec4(r,1.); }`;
+
+const POST = `#version 300 es
+precision highp float; uniform sampler2D T; uniform vec2 uRes; uniform float uN; out vec4 o;
+vec3 aces(vec3 x){ const mat3 A=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777);
+  const mat3 B=mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602);
+  vec3 v=A*x; vec3 a=v*(v+0.0245786)-0.000090537; vec3 b=v*(0.983729*v+0.4329510)+0.238081; return clamp(B*(a/b),0.,1.); }
+vec3 tap(vec2 uv){ return texture(T, uv).rgb/uN; }
+void main(){ vec2 uv = gl_FragCoord.xy/uRes;
+  // slight chromatic aberration toward the edges
+  vec2 dc = (uv-0.5)*0.0018;
+  vec3 c = vec3(tap(uv+dc).r, tap(uv).g, tap(uv-dc).b);
+  // bloom (wide, only bright parts)
+  vec3 b = vec3(0.); float w = 0.;
+  for (int i=-4;i<=4;i++) for (int j=-4;j<=4;j++){ vec2 off = vec2(i,j)*16./uRes; float k = exp(-float(i*i+j*j)/7.);
+    b += max(tap(uv+off) - 1.0, 0.)*k; w += k; }
+  c += b/w*1.4;
+  c *= 1.35;                                   // exposure
+  c = aces(c);
+  c = pow(c, vec3(1./2.2));
+  c = mix(vec3(dot(c,vec3(0.2126,0.7152,0.0722))), c, 1.08);
+  c = c*c*(3.-2.*c)*0.18 + c*0.82;             // gentle S-curve
+  float vig = smoothstep(1.2, 0.3, length((uv-0.5)*vec2(0.85,1.)));
+  c *= mix(0.62, 1., vig);
+  c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233)))*43758.5453)-0.5)*0.018;   // film grain
+  o = vec4(c,1.); }`;
+
+window.addEventListener('load', () => setTimeout(() => (async () => {
+  // SPEED TEST build: internal 1440x2560, 8 samples + denoiser; also times the "only Steve's region" re-render.
+  const RW = 1080, RH = 1920, FAST_SPP = 8;
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.round(1080*dpr), H = Math.round(1920*dpr);
+  const out = document.getElementById('c'); out.width = W; out.height = H;
+  const cv = document.createElement('canvas'); cv.width = RW; cv.height = RH;
+  const gl = cv.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  gl.getExtension('EXT_color_buffer_float'); gl.getExtension('EXT_float_blend');
+  const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  window.glInfo = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  const par = gl.getExtension('KHR_parallel_shader_compile');
+  const mk = (t, src) => { const x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); return x; };
+  const prog = async (f) => { const vs = mk(gl.VERTEX_SHADER, VS), fsx = mk(gl.FRAGMENT_SHADER, f); const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, fsx); gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p);
+    if (par) while (!gl.getProgramParameter(p, par.COMPLETION_STATUS_KHR)) await new Promise((r) => setTimeout(r, 100));
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('VS ' + gl.getShaderInfoLog(vs) + ' FS ' + gl.getShaderInfoLog(fsx) + ' LINK ' + gl.getProgramInfoLog(p)); return p; };
+  const tc = performance.now(); const [P1, P2, P3] = await Promise.all([prog(FS), prog(POST), prog(DEN)]); window.compileSeconds = (performance.now() - tc)/1000;
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const mkTex = (fmt) => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, fmt, RW, RH, 0, gl.RGBA, gl.FLOAT, null);
+    const flt = fmt === gl.RGBA32F ? gl.NEAREST : gl.LINEAR;   // 32-bit float textures are not filterable: LINEAR makes them read as black
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, flt], [gl.TEXTURE_MAG_FILTER, flt], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v); return t; };
+  const accC = mkTex(gl.RGBA32F), accN = mkTex(gl.RGBA32F), accA = mkTex(gl.RGBA32F), pp = [mkTex(gl.RGBA16F), mkTex(gl.RGBA16F)];
+  const fbAcc = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fbAcc);
+  [accC, accN, accA].forEach((t, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0));
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+  const fbPP = pp.map((t) => { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; });
+  try { await document.fonts.load(`100px IB`); await document.fonts.load(`100px IXB`); } catch (e) { console.warn('font', e.message); }
+
+  const gpuDone = async () => { const sy = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
+    while (true) { const r = gl.clientWaitSync(sy, 0, 0); if (r === gl.ALREADY_SIGNALED || r === gl.CONDITION_SATISFIED) break; if (r === gl.WAIT_FAILED || gl.isContextLost()) throw new Error('GPU reset / wait failed'); await new Promise((q) => setTimeout(q, 10)); }
+    gl.deleteSync(sy); if (gl.isContextLost()) throw new Error('GPU reset'); };
+  // draw a full-screen program over a rect in small blocks (no 2 s driver reset)
+  const blocks = async (rect, bw = 256, bh = 32) => { gl.enable(gl.SCISSOR_TEST);
+    for (let y = rect[1]; y < rect[1] + rect[3]; y += bh) { for (let x = rect[0]; x < rect[0] + rect[2]; x += bw) { gl.scissor(x, y, Math.min(bw, rect[0]+rect[2]-x), Math.min(bh, rect[1]+rect[3]-y)); gl.drawArrays(gl.TRIANGLES, 0, 3); } gl.flush(); }
+    await gpuDone(); gl.disable(gl.SCISSOR_TEST); };
+  const FULL = [0, 0, RW, RH];
+  const trace = async (spp, rect, f) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbAcc); gl.viewport(0, 0, RW, RH);
+    gl.enable(gl.SCISSOR_TEST); gl.scissor(...rect); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.disable(gl.SCISSOR_TEST);
+    gl.useProgram(P1); gl.uniform2f(gl.getUniformLocation(P1, 'uRes'), RW, RH);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    for (let s = 0; s < spp; s++) { gl.uniform1ui(gl.getUniformLocation(P1, 'uSeed'), s*7919 + f*104729 + 1); await blocks(rect); }
+    gl.disable(gl.BLEND); };
+  const denoise = async (spp, rect) => {
+    gl.useProgram(P3); gl.viewport(0, 0, RW, RH);
+    const U = (n) => gl.getUniformLocation(P3, n);
+    gl.uniform1f(U('uN'), spp); gl.uniform1i(U('I'), 0); gl.uniform1i(U('G'), 1); gl.uniform1i(U('A'), 2); gl.uniform1i(U('C'), 3);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accN); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, accA); gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, accC);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbPP[0]); gl.uniform1i(U('uMode'), 0); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[1]); await blocks(rect, 512, 128);
+    let src = 0; const steps = [1, 2, 4, 8, 16];
+    for (let k = 0; k < steps.length; k++) { const dst = 1 - src;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbPP[dst]); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[src]);
+      gl.uniform1i(U('uStep'), steps[k]); gl.uniform1i(U('uMode'), k === steps.length - 1 ? 2 : 1); await blocks(rect, 512, 128); src = dst; }
+    return pp[src]; };
+  const post = async (tex, n) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, RW, RH); gl.useProgram(P2);
+    gl.uniform2f(gl.getUniformLocation(P2, 'uRes'), RW, RH); gl.uniform1f(gl.getUniformLocation(P2, 'uN'), n);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(gl.getUniformLocation(P2, 'T'), 0);
+    await blocks(FULL, 512, 128); };
+  // Steve's region on screen (internal pixels, GL y-up), from his bounding box through the same camera
+  const steveRect = () => { const C = [0.75,2.35,2.75], Tg = [0.0,2.75,-0.7];
+    const sub = (a,b) => a.map((v,i) => v-b[i]), nrm = (a) => { const l = Math.hypot(...a); return a.map((v) => v/l); }, cr = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]], dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+    const w = nrm(sub(Tg,C)), u = nrm(cr(w,[0,1,0])), v = cr(u,w), fl = 1/Math.tan(50*Math.PI/360);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const X of [-0.5, 0.9]) for (const Y of [0, 1.95]) for (const Z of [-0.25, 0.35]) { const d = sub([X, 1.0 + Y, -0.55 + Z], C), z = dot(d,w);
+      const px = (dot(d,u)/z*fl*RH + RW)/2, py = (dot(d,v)/z*fl*RH + RH)/2; x0 = Math.min(x0,px); x1 = Math.max(x1,px); y0 = Math.min(y0,py); y1 = Math.max(y1,py); }
+    const m = 0.06*RH; x0 = Math.max(0, Math.floor(x0-m)); y0 = Math.max(0, Math.floor(y0-m)); x1 = Math.min(RW, Math.ceil(x1+m)); y1 = Math.min(RH, Math.ceil(y1+m));
+    return [x0, y0, x1-x0, y1-y0]; };
+  window.frames = 1;
+  window.done = true;
+
+  window.renderFrame = async (f) => {
+    const T = {}; let t = performance.now();
+    await trace(1, [0, 0, 64, 64], f); T.warmup = (performance.now() - t)/1000;   // first draw triggers a one-time GPU shader build
+    t = performance.now();
+    await trace(FAST_SPP, FULL, f); T.trace = (performance.now() - t)/1000;
+    t = performance.now(); const dn = await denoise(FAST_SPP, FULL); T.denoise = (performance.now() - t)/1000;
+    t = performance.now(); await post(dn, 1); T.post = (performance.now() - t)/1000;
+    // ---- 2D overlay at output resolution ----
+    const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, W, H); const S = W/1080;
+    const stroked = (txt, x, y, size, font, fill, stroke, lw, rot = 0) => { g.save(); g.translate(x*S, y*S); g.rotate(rot); g.font = `${size*S}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineJoin = 'round'; g.strokeStyle = stroke; g.lineWidth = lw*S; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 22*S; g.shadowOffsetY = 8*S; g.strokeText(txt, 0, 0);
+      g.shadowColor = 'transparent'; g.fillStyle = fill; g.fillText(txt, 0, 0); g.restore(); };
+    stroked('SNAP.', 800, 215, 84, 'IB', '#ffffff', '#d93a2b', 22, -0.12);
+    stroked('SAFETY BRAKE', 540, 1640, 112, 'IB', '#ffd23a', '#141414', 24);
+    g.save(); g.font = `${78*S}px IXB`; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    const parts = [['the claws ', '#ffffff'], ['BITE', '#ffd23a']]; const tw = parts.reduce((a, p) => a + g.measureText(p[0]).width, 0);
+    let x = W/2 - tw/2; const y = 1790*S;
+    for (const [tt, c] of parts) { g.strokeStyle = '#111'; g.lineWidth = 18*S; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 14*S; g.shadowOffsetY = 5*S; g.strokeText(tt, x, y);
+      g.shadowColor = 'transparent'; g.fillStyle = c; g.fillText(tt, x, y); x += g.measureText(tt).width; }
+    g.restore();
+    // ---- static-camera test: re-trace only Steve's region (the rest would come from the cached shaft) ----
+    const R = steveRect(); t = performance.now(); await trace(FAST_SPP, R, f + 1); await denoise(FAST_SPP, R); T.region = (performance.now() - t)/1000;
+    T.regionShare = (R[2]*R[3])/(RW*RH);
+    window.T = T;
+  };
+  window.hdriUsed = () => { const T = window.T || {}; const full = T.trace + T.denoise + T.post;
+    return `\nSPEED TEST (1080x1920 inside, ${FAST_SPP} samples + denoiser)\n  trace ${T.trace?.toFixed(2)} s | denoise ${T.denoise?.toFixed(2)} s | post ${T.post?.toFixed(2)} s | full frame ${full.toFixed(2)} s\n  static camera, only Steve's region re-rendered (${(T.regionShare*100).toFixed(0)}% of the frame): ${T.region?.toFixed(2)} s\n  shader compile ${window.compileSeconds?.toFixed(1)} s + first-draw warm-up ${T.warmup?.toFixed(1)} s (once per video)\n  old look test: 2160x3840, 32 samples = 106 s\n`; };
+})().catch((e) => { console.error(e); document.title = 'ERROR ' + e.message; window.glInfo = 'ERROR ' + e.message; window.done = true; }), 50));
+</script></body></html>

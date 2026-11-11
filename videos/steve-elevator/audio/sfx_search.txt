@@ -1,0 +1,20 @@
+# name|type|query|n  (opus-sound-layer sfx.py search: CC0 Freesound via Openverse, prepared + judged)
+ropesnap|hit|rope snap break|5
+cratecrash|hit|wooden crate crash smash|5
+bodythud|thump|body fall thud floor|5
+metalclank|hit|metal clank heavy latch|5
+ratchet|tick|ratchet click|5
+spark|zap|metal grinding sparks|5
+crank|tick|crank winding creak|4
+springboing|pop|spring boing|5
+whooshup|whoosh|fast whoosh rising|4
+elevding|chime|elevator ding bell|5
+doorslide|swish|sliding door|4
+doorchomp|hit|door slam close|4
+crunch|tap|bread crunch bite|4
+gulp|pop|gulp swallow|4
+sigh|swish|man sigh|4
+gasp|swish|gasp breath|4
+cashreg|chime|cash register|3
+footsteps|tap|footsteps stairs|4
+bungee|pop|boing bounce rubber|4

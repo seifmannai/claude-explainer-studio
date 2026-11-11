@@ -1,0 +1,7 @@
+# name|query|n  (kit/local/fetch_cc0.py: long CC0 recordings, not judged)
+music_quirky|quirky comedy background music|5
+music_lounge|elevator music lounge|4
+motorhum|electric motor hum|3
+motorstrain|motor strain overload|3
+shaftamb|elevator shaft ambience|3
+roomtone|room tone ambience|2

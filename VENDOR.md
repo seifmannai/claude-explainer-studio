@@ -16,6 +16,7 @@ Copied into skills/vendor/ (open licence, LICENSE kept in each folder):
 | kinetic-reel, painted-animation | github.com/tuzhechen2005/opus-video-skills | MIT | Channel intro / trailer, painted style |
 | viral-hooks | github.com/rediumvex/viral-hooks-skill | MIT | 100 hook formulas: pick 3 hooks per video, lead with the strongest |
 | instagram-agent (13 ig-* skills) | github.com/Jakeschincariol/instagram-agent-skill | MIT | ig-reel (26 hook formulas + hookscore.py), ig-caption, ig-human (strips AI tells from captions), ig-viral (find outliers in a niche), ig-plan, ig-repurpose (one video -> carousel/story/caption). Offline Python, no API key. Use for Reels/Shorts captions and posting plans. |
+| opus-sound-layer | github.com/Bodila51/opus-sound-layer | MIT | Real CC0 sound effects (Kenney + Freesound), cue-sheet mixer (peak-aligned, ducking, -14 LUFS), QA vs picture. Runs on the PC via make steps `sfxkit` and `sfxmix`. |
 | kit/toon-engine/web/toonbase.js | github.com/mromidev/claude-animated-shorts | MIT | Cartoon character pen (cartoon shorts) |
 
 Linked only (no licence or not copyable; lessons written in our own words):
