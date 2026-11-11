@@ -187,6 +187,76 @@
    "t": 129.02,
    "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\footsteps\\tap\\ov-e0bc2b4d.wav",
    "align": "start"
+  },
+  {
+   "id": "appear_rope",
+   "t": 7.08,
+   "sound": "pop",
+   "visual": "appear",
+   "pan": -0.3
+  },
+  {
+   "id": "appear_wheel",
+   "t": 7.66,
+   "sound": "click",
+   "visual": "appear",
+   "pan": 0
+  },
+  {
+   "id": "appear_box",
+   "t": 8.74,
+   "sound": "pop",
+   "visual": "appear",
+   "pan": 0.3
+  },
+  {
+   "id": "appear_teeth",
+   "t": 21.84,
+   "sound": "click",
+   "visual": "appear",
+   "pan": -0.3
+  },
+  {
+   "id": "appear_claws",
+   "t": 23.92,
+   "sound": "pop",
+   "visual": "appear",
+   "pan": 0
+  },
+  {
+   "id": "appear_block",
+   "t": 57.08,
+   "sound": "click",
+   "visual": "appear",
+   "pan": 0.3
+  },
+  {
+   "id": "appear_govwheel",
+   "t": 74.02,
+   "sound": "pop",
+   "visual": "appear",
+   "pan": -0.3
+  },
+  {
+   "id": "appear_weights",
+   "t": 74.56,
+   "sound": "click",
+   "visual": "appear",
+   "pan": 0
+  },
+  {
+   "id": "appear_beams",
+   "t": 95.36,
+   "sound": "click",
+   "visual": "appear",
+   "pan": -0.3
+  },
+  {
+   "id": "appear_carbon",
+   "t": 112.54,
+   "sound": "pop",
+   "visual": "appear",
+   "pan": 0
   }
  ]
 }
