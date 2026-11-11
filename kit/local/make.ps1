@@ -59,18 +59,6 @@ Step 'audio' {
     & $py "$Studio\kit\explainer3d\tools\audio_kit.py" "$aud\events.json" "$aud\sentences.json" $aud @sec }
   if ($LASTEXITCODE -eq 0) { & $py "$Studio\kit\explainer3d\tools\mix.py" "$aud\voice.wav" "$aud\music.wav" "$aud\sfx.wav" $aud; Copy-Item "$aud\final.wav" "$out\final.wav" -Force }
 }
-Step 'render' {
-  $env:RESUME = '1'; $env:SCALE = $scale; $env:PROGRESS = "$Root\out\progress.html"
-  Write-Host "   rendering $($job.name) at ${scale}x - double-click '3-VIEW PROGRESS' to watch" -ForegroundColor Cyan
-  node "$Studio\kit\local\local_render.mjs" frames $Studio $page "$out\frames" auto
-}
-Step 'encode' {
-  $wav = $(if (Test-Path "$out\final.wav") { "$out\final.wav" } else { "$aud\final.wav" })
-  $a = @(); if (Test-Path $wav) { $a = @('-i', $wav, '-c:a', 'aac', '-b:a', '192k', '-shortest') }
-  ffmpeg -v error -y -framerate $fps -i "$out\frames\f%04d.jpg" @a -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "$out\$($job.name).mp4"
-  if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf scale=540:960 -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k -movflags +faststart "$out\preview.mp4" }
-  if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf "select='not(mod(n\,125))',scale=270:480,tile=8x2:padding=4" -frames:v 1 "$out\sheet.jpg" }
-}
 # ---- sound layer (skills/vendor/opus-sound-layer): real CC0 recordings, placed from a cue sheet ----
 $sl = "$Studio\skills\vendor\opus-sound-layer\scripts"; $sx = "$Root\sfx"
 Step 'sfxkit' {
@@ -102,5 +90,17 @@ Step 'sfxmix' {
   if (-not (Test-Path "$sx\music\$($job.slug).wav")) { & $py "$Studio\kit\local\music_gen.py" "$sx\music\$($job.slug).wav" 150 }
   Push-Location $sx; & $py "$sl\mix.py" "$aud\cues.json" --out "$out\mix"; Pop-Location
   if ($LASTEXITCODE -eq 0) { Copy-Item "$out\mix\mix.wav" "$out\final.wav" -Force; ffmpeg -v error -y -i "$out\mix\mix.wav" -b:a 192k "$out\mix_preview.mp3" }
+}
+Step 'render' {
+  $env:RESUME = '1'; $env:SCALE = $scale; $env:PROGRESS = "$Root\out\progress.html"
+  Write-Host "   rendering $($job.name) at ${scale}x - double-click '3-VIEW PROGRESS' to watch" -ForegroundColor Cyan
+  node "$Studio\kit\local\local_render.mjs" frames $Studio $page "$out\frames" auto
+}
+Step 'encode' {
+  $wav = $(if (Test-Path "$out\final.wav") { "$out\final.wav" } else { "$aud\final.wav" })
+  $a = @(); if (Test-Path $wav) { $a = @('-i', $wav, '-c:a', 'aac', '-b:a', '192k', '-shortest') }
+  ffmpeg -v error -y -framerate $fps -i "$out\frames\f%04d.jpg" @a -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "$out\$($job.name).mp4"
+  if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf scale=540:960 -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k -movflags +faststart "$out\preview.mp4" }
+  if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf "select='not(mod(n\,125))',scale=270:480,tile=8x2:padding=4" -frames:v 1 "$out\sheet.jpg" }
 }
 "DONE $(Get-Date -f s)" | Out-File $status -Append -Encoding utf8
