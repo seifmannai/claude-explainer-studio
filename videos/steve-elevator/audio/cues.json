@@ -1,0 +1,192 @@
+{
+ "fps": 30,
+ "duration_s": 130.82,
+ "energy": "punchy",
+ "kit": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\kit",
+ "room": {
+  "decay_s": 0.6,
+  "wet_db": -16
+ },
+ "voice": [
+  {
+   "file": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\in\\steve_voice_user_fast.wav",
+   "start_s": 0.0
+  }
+ ],
+ "silence_ok": [
+  [
+   129.32,
+   130.82
+  ]
+ ],
+ "cues": [
+  {
+   "id": "sigh",
+   "t": 4.54,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\sigh\\swish\\ov-01d8b859.wav",
+   "align": "start"
+  },
+  {
+   "id": "crank1",
+   "t": 9.84,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\crank\\tick\\ov-ac3dfcd1.wav",
+   "align": "start"
+  },
+  {
+   "id": "crank2",
+   "t": 10.36,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\crank\\tick\\ov-ac3dfcd1.wav",
+   "align": "start",
+   "pitch": 1
+  },
+  {
+   "id": "snap",
+   "t": 16.16,
+   "sound": "hit",
+   "weight": "hero",
+   "stop_before": true,
+   "visual": "cut"
+  },
+  {
+   "id": "fallwhoosh",
+   "t": 16.5,
+   "sound": "whoosh",
+   "align": "start",
+   "pan": -0.2
+  },
+  {
+   "id": "crash",
+   "t": 18.72,
+   "sound": "hit+boom",
+   "weight": "hero",
+   "visual": "land"
+  },
+  {
+   "id": "bite",
+   "t": 28.66,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\metalclank\\hit\\ov-e2a6f49d.wav+C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\ratchet\\tick\\ov-249113ba.wav",
+   "weight": "hero",
+   "visual": "land"
+  },
+  {
+   "id": "drop",
+   "t": 37.82,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\ratchet\\tick\\ov-249113ba.wav",
+   "pan": 0.3
+  },
+  {
+   "id": "stop",
+   "t": 38.52,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\metalclank\\hit\\ov-e2a6f49d.wav",
+   "visual": "land"
+  },
+  {
+   "id": "gulp",
+   "t": 42.58,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\gulp\\pop\\ov-4753132e.wav"
+  },
+  {
+   "id": "passout",
+   "t": 47.04,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\bodythud\\thump\\ov-267bcd6e.wav",
+   "visual": "land"
+  },
+  {
+   "id": "bigmotor",
+   "t": 49.62,
+   "sound": "riser",
+   "align": "end"
+  },
+  {
+   "id": "cash",
+   "t": 50.58,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\cashreg\\chime\\ov-62dd2f8f.wav"
+  },
+  {
+   "id": "tinymotor",
+   "t": 60.67,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\ratchet\\tick\\ov-eba3c407.wav",
+   "align": "start"
+  },
+  {
+   "id": "fast",
+   "t": 64.35,
+   "sound": "whoosh",
+   "weight": "hero",
+   "visual": "move"
+  },
+  {
+   "id": "hair",
+   "t": 67.92,
+   "sound": "whoosh+C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\springboing\\pop\\ov-6198d26f.wav",
+   "pan": 0.3
+  },
+  {
+   "id": "governor",
+   "t": 75.32,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\metalclank\\hit\\ov-e2a6f49d.wav+C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\ratchet\\tick\\ov-eba3c407.wav",
+   "visual": "land"
+  },
+  {
+   "id": "springs",
+   "t": 78.68,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\springboing\\pop\\ov-2852ff93.wav"
+  },
+  {
+   "id": "gap",
+   "t": 84.55,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\gasp\\swish\\ov-24a7080f.wav+whoosh",
+   "align": "start"
+  },
+  {
+   "id": "fall2",
+   "t": 85.10000000000001,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\bodythud\\thump\\ov-267bcd6e.wav",
+   "weight": "hero",
+   "visual": "land"
+  },
+  {
+   "id": "chomp",
+   "t": 91.36,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\doorchomp\\hit\\ov-a1c1af85.wav",
+   "weight": "hero",
+   "visual": "land"
+  },
+  {
+   "id": "crunch",
+   "t": 91.7,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\crunch\\tap\\ov-3a9d4c5d.wav"
+  },
+  {
+   "id": "backoff",
+   "t": 96.32,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\doorslide\\swish\\ov-27da1890.wav",
+   "visual": "move"
+  },
+  {
+   "id": "bungee",
+   "t": 109.34,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\bungee\\pop\\ov-4dacc419.wav+C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\springboing\\pop\\ov-2852ff93.wav",
+   "weight": "hero"
+  },
+  {
+   "id": "ding",
+   "t": 116.66,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\elevding\\chime\\ov-a684f80d.wav",
+   "weight": "hero",
+   "stop_before": true
+  },
+  {
+   "id": "keys",
+   "t": 122.98,
+   "sound": "tick",
+   "stop_before": true
+  },
+  {
+   "id": "stairs",
+   "t": 129.02,
+   "sound": "C:\\Users\\kei\\Documents\\Youtube channel\\HowItReallyWorks\\sfx\\cand\\steve-elevator\\footsteps\\tap\\ov-e0bc2b4d.wav",
+   "align": "start"
+  }
+ ]
+}
