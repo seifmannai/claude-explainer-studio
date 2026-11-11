@@ -67,7 +67,7 @@ float sdFlat(vec3 p, vec3 a, vec3 b, float wa, float wb, vec3 n){
   vec3 ba=b-a; float h=clamp(dot(p-a,ba)/dot(ba,ba),0.,1.); vec3 q=p-(a+ba*h);
   float dn=dot(q,n); float side=length(q-dn*n); return length(vec2(max(side-mix(wa,wb,h),0.), dn)) - 0.0035; }
 // pop-in: shrink everything about a centre when vis < 1
-float popd(float d, float vis){ return d + (1. - clamp(vis,0.,1.))*0.3; }   // grow-in: erodes until it vanishes
+float popd(float d, float vis){ return d + (1. - clamp(vis,0.,1.))*0.08; }   // grow-in: erodes until it vanishes
 
 #define M_CONC 1.
 #define M_BRICK 2.
@@ -140,7 +140,7 @@ vec2 head(vec3 q){
                  sdCapT(q, vec3( 0.058,0.047+raise*0.4,0.088), vec3( 0.014,0.05+raise*0.4,0.103), 0.0045, 0.006));
   r = U(r, br, M_HAIR);
   // hair: lifted by HAIRUP, can lag behind the head (HAIRLAG, metres)
-  vec3 hq = q - vec3(0., HAIRLAG, 0.);
+  vec3 hq = q - vec3(0., HAIRLAG, -HAIRLAG*0.7);
   float cap = sdEll(hq - vec3(0.,0.036,-0.014), vec3(0.093,0.088,0.106));
   float hl = hq.y - (0.06*smoothstep(-0.02,0.07,hq.z) - 0.035*(1.-smoothstep(-0.09,-0.01,hq.z)));
   cap = max(cap, -hl);
@@ -169,12 +169,13 @@ vec2 steve(vec3 p){
   float cr = CROUCH*0.2;
   vec3 up = p + vec3(0., cr - bob, 0.);                    // upper body sits lower when crouched
   // head (slump tips it forward)
-  vec3 hq = up - HEADC; hq.yz = rot(-0.45*SLUMP)*hq.yz; hq.y += 0.03*SLUMP;
-  float hb = length(hq) - 0.2;
+  vec3 hq = up - HEADC; hq.yz = rot(0.45*SLUMP)*hq.yz; hq.y += 0.03*SLUMP;
+  float hb = min(length(hq), length(hq - vec3(0., HAIRLAG, -HAIRLAG*0.7))) - 0.2;
   r = hb < 0.05 ? head(hq) : vec2(hb, 0.);
   float tor = sdCapT(up, vec3(0.,0.93,0.), vec3(0.,1.3,0.025 + 0.05*SLUMP), 0.135, 0.148);
   tor = smin(tor, sdEll(up - vec3(0.,1.3,0.025 + 0.05*SLUMP), vec3(0.178,0.125,0.108)), 0.06);
   tor = smin(tor, min(sdEll(up-vec3(-0.168,1.395 - 0.04*SLUMP,0.005), vec3(0.07,0.05,0.062)), sdEll(up-vec3(0.168,1.395 - 0.04*SLUMP,0.005), vec3(0.07,0.05,0.062))), 0.045);
+  tor = max(tor, 0.95 - up.y);                                  // shirt tucked in at the belt
   tor += 0.004*sin(up.y*70. + sin(up.x*25.)*2.)*smoothstep(1.35,0.95,up.y);
   // arms: relaxed (coffee at chest) -> panic (right hand on the rail, left up)
   vec3 sR=vec3(0.19,1.4 - 0.04*SLUMP,0.), sL=vec3(-0.19,1.4 - 0.04*SLUMP,0.);
@@ -203,7 +204,7 @@ vec2 steve(vec3 p){
   float hipY = 0.86 - cr;
   vec3 kL = vec3(-0.12, 0.47 - cr*0.4, 0.06 + cr*0.5 + 0.12*wk), kR = vec3(0.14, 0.47 - cr*0.4, 0.05 + cr*0.5 - 0.12*wk);
   vec3 aL = vec3(-0.13, 0.08, -0.01 + 0.1*wk), aR = vec3(0.15, 0.08, -0.03 - 0.1*wk);
-  float pel = sdEll(p - vec3(0.,hipY + 0.03 + bob,0.), vec3(0.158,0.1,0.112));
+  float pel = sdEll(p - vec3(0.,hipY + 0.06 + bob,0.), vec3(0.165,0.125,0.12));
   float lg = min(min(sdCapT(p, vec3(-0.095,hipY,0.), kL, 0.078, 0.058), sdCapT(p, kL, aL, 0.056, 0.042)),
                  min(sdCapT(p, vec3(0.095,hipY,0.), kR, 0.078, 0.058), sdCapT(p, kR, aR, 0.056, 0.042)));
   float pants = smin(pel, lg, 0.05) + 0.003*sin(p.y*60. + p.x*30.);
@@ -353,7 +354,7 @@ vec2 shaft(vec3 p){
   float ax = abs(p.x);
   float belowRoof = p.y - (ROOF + 0.16);
   // ground with the pit hole
-  float foot = sdBox(vec3(p.x - 0.1, 0., p.z + 0.69), vec3(1.6, 1., 1.19));
+  float foot = sdBox(vec3(p.x - 0.1, 0., p.z - 0.5), vec3(1.6, 1., 2.4));
   r = U(r, min(max(p.y + 0.16, -foot), p.y + 1.25), M_GROUND);
   // floor slabs: left rooms x<-1.2, right rooms x>1.65, building |x|<4
   float sy = p.y - 3.6*floor(p.y/3.6 + 0.5);
