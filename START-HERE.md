@@ -28,7 +28,10 @@ Free / open-source tools only. Never paid tools.
 - Sound matters a lot: an effect for every action, room tone, music that follows the story.
 - Voice: Kokoro blend **am_michael 0.4 + am_puck 0.6** ("blend40"), natural pacing (per-line speed and pauses).
   Chatterbox (more expressive) is installed on the PC as an option.
-- No on-screen inventor character for now (only if a better idea comes up).
+- Video 3 introduced a recurring character, **Steve** (deadpan adult, teens+ humour), now drawn in 2D over a 3D world.
+- Quality bar (2026-11-12): nothing may ever look static; animation quality first; every improvement goes into `kit/`
+  so the next video is faster. Always ask "is your runner on?" before dropping a job. Never render in the cloud.
+- Voice for video 3: the user's own recording (sped up 1.12x), not Kokoro.
 - When she says stop or wait, stop immediately and don't keep polling.
 
 ## 4. The skills
@@ -43,7 +46,8 @@ Free / open-source tools only. Never paid tools.
 - `2-START RUNNER (keep open).bat` - start before Claude works. Claude drops job files in `jobs\`; the runner runs them; logs in `logs\`.
 - `3-VIEW PROGRESS.bat` - watch a render.
 - Extra tools come from the runner's `tools` job: Blender, faster-whisper, Kokoro (`models\kokoro`, Python env `py\`),
-  Chatterbox (Python env `pycb\`), HyperFrames (`hyperframes\`).
+  Chatterbox (Python env `pycb\`), HyperFrames (`hyperframes\`). The `make` step `install` adds Open Image Denoise (`oidn\`)
+  and WhisperX (Python env `pywx\`).
 - `4-MAKE PORTABLE COPY.bat` - builds a slim copy (`HowItReallyWorks-portable`, usually < 1 GB) next to the folder.
 - **Moving to another PC:** copy the portable folder (not the full ~10 GB one), run `1-SETUP`, start the runner,
   connect the folder in the Claude desktop app, then Claude drops a `{"action":"tools"}` job, which rebuilds what was left out:
@@ -59,4 +63,5 @@ Free / open-source tools only. Never paid tools.
 
 ## 7. Videos so far
 - `videos\combustion-engine\` - video 1 (posted). Feedback: too detailed/technical -> led to FUN-RULES.md.
-- `videos\microwave\` - video 2, IN PROGRESS: script, storyboard, voice timings, kitchen world + story page done; see NEXT.md.
+- `videos\microwave\` - video 2, paused.
+- `videos\steve-elevator\` - video 3, IN PROGRESS (v1 rejected, v2 in a new style: 3D world with ink lines + drawn Steve). See NEXT.md.

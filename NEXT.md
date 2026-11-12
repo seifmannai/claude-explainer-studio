@@ -1,34 +1,56 @@
 # Where we left off (read this first in a new session)
 
-Last update: 2026-11-09 (morning). New here? Read START-HERE.md first.
+Last update: 2026-11-12, 21:30 Tunis time. New here? Read START-HERE.md first, then CLAUDE.md (the "Quality bar" section is mandatory).
 
-## Right now
-- Video 2 = THE MICROWAVE, "you invent it" format (videos/microwave). Topic, storyboard, voice (blend40) and look approved by Asma.
-  Asma said: start making it, ask only important questions.
-- PC tools install (runner `tools` job, 2026-11-09): Kokoro OK; Blender + faster-whisper were already installed.
-  Chatterbox + HyperFrames were re-running (job d_tools_1109). Asma will say when it finished; then read logs/d_tools_1109.log ONCE
-  and check the lines "CHATTERBOX OK" and the HyperFrames version.
-- Next step after that: re-run the microwave stills (fixes written, not yet checked), then sound kit, then one `make` job
-  ("tts":"kokoro", voice made on the PC from videos/microwave/script.txt).
+## Right now: video 3 = "Steve & the elevator" (videos/steve-elevator), being rebuilt in a NEW STYLE
+v1 (all-3D Steve, rendered overnight, `out\steve_v1\steve_v1.mp4` on the PC) was REJECTED by the user:
+music too loud/annoying, glitches (wheel in the roof, white speed lines, hair "crown", halo around Steve),
+Steve not alive (static), dialogue not in sync with picture and captions. Full post-mortem: LEARNINGS.md 2026-11-12.
 
-## Done
-- Video 1: combustion engine Short (videos/combustion-engine), rendered on the PC GPU, posted by the user on 2026-11-09.
-  Final file on the PC: out/engine_v1.mp4. QA sheet: videos/combustion-engine/qa_sheet.jpg.
-- One-job PC pipeline `make` works (words + audio tested; render/encode use the same tools as v1). See CLAUDE.md "Save credits".
-- Skills added: instagram-agent (skills/vendor/instagram-agent), notes from everything-claude-code (skills/notes).
+The user's new direction (2026-11-12 evening), approved in principle:
+- **The 3D world stays** (our WebGL2 path tracer, `videos/steve-elevator/web/short.html` + `scene.glsl.js`),
+  now with **ink outlines** (G-buffer depth creases + normal breaks), soft cel bands and paper grain.
+  Switch: `INK` in short.html (query `?ink=0/1`).
+- **Characters are DRAWN in 2D** on top of the 3D world: `kit/char2d/stick.js` (our own design, Steve).
+  Switch: `DRAWN` (query `?drawn=0/1`). The 3D Steve is hidden when DRAWN=1.
+  - Line boil: every line is redrawn differently EVERY frame (`Stick.boilFps = 24`). The user wants
+    "every frame a different drawing, never standing still".
+  - Real limbs (IK tubes, sleeves, trousers, mitten hands, shoes), 8 expressions (deadpan, smug, panic, defeat,
+    idea, angry, suspicious, relief), `Stick.alive()` idle layers, `Stick.act()` 4-part moves with overlap.
+  - Placed with the shader's camera maths (`project()` / `drawSteve()` in short.html, 1.78 m tall).
+    The pose is still a crude mapping from the old state (TODO: word-driven acting).
+- User saw: `steve_drawn_sheet_v2` (expression sheet) and `steve_drawn_alive_test.mp4` (7 s acting test, flat backdrop).
+  He has NOT yet seen the ink look in 3D: that needs the PC.
+- Reference style the user likes: rough hand-drawn comic faces (thick brows, big expressive eyes and mouths),
+  stick-ish people with real limbs. Use as inspiration only; never copy other channels' characters.
 
-## Microwave video (in progress, 2026-11-09)
-- Script + timings done: videos/microwave/script.txt, audio/sentences.json, audio/words.json (voice = Kokoro am_michael*0.4 + am_puck*0.6 via kit/explainer3d/tools/voice_blend.py; voice.wav not committed, rebuild with that tool).
-- Scene page: videos/microwave/web/short.html + world.js (kitchen, all props, timeline, sound cues in window.events()).
-- First stills looked promising (water buddies, cat, phone) but: too bright, fridge was solid (now hollow), window hidden behind wall (now cut out), pizza close-ups milky (now lid lifts off, top-down camera). These fixes are written but NOT yet checked: re-run stills first (`node kit/explainer3d/tools/stills.mjs . videos/microwave/web/short.html /tmp/mw2 15,80,225,330,735,1520,1700,1830`).
-- Still to do: sound kit (SFX for every event + story music), PC render with make (steps render,encode, final.wav staged to the PC).
+## Next steps, in order (ask "is your runner on?" before dropping ANY job)
+1. Drop `{"action":"selfupdate"}` (runner now accepts `"query"` on still jobs).
+2. Drop `{"action":"make","slug":"steve-elevator","name":"tools_1112","steps":"install"}` -> installs
+   Open Image Denoise (`<Root>\oidn`) + WhisperX (env `<Root>\pywx`). Check `out\tools_1112\STATUS.txt` and the
+   log for "OIDN OK" and "WHISPERX OK" / "ALIGN MODEL OK".
+3. Two style stills in the real shaft for the user to choose:
+   `{"action":"still","page":"videos/steve-elevator/web/short.html","name":"style_ink","query":"t=16.5&ink=1&drawn=1"}`
+   and the same with `ink=0` (name style_noink). Output `out\stills\<name>.png`. Check framing, Steve's size/feet
+   on the floor, line quality, then send both to the user. Pick moments where Steve is on screen (see `state(t)`).
+4. Word timings: `{"action":"make","slug":"steve-elevator","name":"steve_words2","voice":"in/steve_voice_user_fast.wav","fps":"24","steps":"wxwords"}`
+   -> `out\steve_words2\words.json` + `sync_check.txt`. Must pass (0.08 s). Then copy into `videos/steve-elevator/audio/words.json`.
+5. Rebuild the v2 timeline WORD-DRIVEN (`at("word")`, never seconds), acting per line with `Stick.act` + `Stick.alive`,
+   camera always moving, world always alive (skills/ours/always-alive-3d). Softer music 18-20 dB under the voice, off on gags.
+   Fix v1 glitches (see LEARNINGS). Shadows/occlusion for drawn Steve (doors, rope in front of him) still to do.
+6. Gate: 540x960 / 2-sample animatic with full sound -> user approves -> alive_check + contact sheet -> full render.
 
-## Video 2 history (2026-11-09)
-3 topic options (videos/_video2-options/TOPICS.md) -> Asma picked the microwave. v1 feedback (too technical) -> styles/FUN-RULES.md.
-Asma's choices: high-quality environment, storyboard first, build things in the scene, no inventor character, voice blend40, much better sound.
-Also: the engine Short's YouTube title was left as "Upload video" - remind Asma to set titles before publishing.
+## PC facts
+- Folder: `C:\Users\kei\Documents\Youtube channel\HowItReallyWorks\` (start the runner from there, NOT from `-portable`).
+- Jobs go in `jobs\` (via device_commit_files), logs in `logs\` (UTF-16), outputs in `out\`. Progress page `out\progress.html`.
+- GPU: GTX 1060 mobile. 1080p / 8 spp + denoiser ~6 s per frame. Possible 2nd PC: GTX 1660 Ti desktop.
+- Voice: the user's own recording, sped up 1.12x: `in\steve_voice_user_fast.wav` (129.8 s). Reference `in\voice_ref\my_voice_ref.wav`.
+- Sound: opus-sound-layer (steps sfxkit, sfxmix), cue sheet `videos/steve-elevator/audio/cues.json`; CC0 sounds in `sfx\`.
 
-## Known small fixes for v2 of the engine page
-- Hook text "100 EXPLOSIONS EVERY SECOND" overlaps the engine while fading.
-- A lone "G." caption chunk after "2,000+ G".
-- Whisper with the script as initial_prompt can hallucinate filler; check align output.
+## Ideas agreed for later (after this video)
+RIFE frame interpolation test, second render PC, runner auto-start + render queue, Audacity for voice cleanup,
+YouTube Audio Library music, feedback loop from YouTube Studio retention. Blender only as a workshop (user dislikes its look).
+
+## Older videos
+- Video 1: combustion engine (posted). Video 2: microwave (paused; see git history of this file for its state).
+- Separate: "the-cat-who-sank-three-ships" cartoon short (videos/the-cat-who-sank-three-ships).
