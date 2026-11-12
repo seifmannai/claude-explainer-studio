@@ -23,6 +23,7 @@ def onsets(x, sr, hop=0.005, min_gap=0.16):
     thr = max(env.max() * 0.06, np.percentile(env, 20) * 3)
     on = env > thr; out, quiet = [], int(min_gap / hop); last_off = -quiet
     ends = []
+    if on[0]: out.append(0.0)  # speech already running at sample 0 counts as an onset (video 3: 'This is Steve.' flagged wrongly)
     for i in range(1, len(on)):
         if on[i] and not on[i - 1] and i - last_off >= quiet: out.append(i * hop)
         if not on[i] and on[i - 1]: last_off = i; ends.append(i * hop)
