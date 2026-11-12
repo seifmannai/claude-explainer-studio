@@ -5,7 +5,7 @@
 #   name   output name, e.g. engine_v2   (required)
 #   voice  in/<file>.wav            (required for words/audio unless the 'voice' step makes it)
 #   tts    'kokoro' (default) or 'chatterbox' for the 'voice' step; it reads videos/<slug>/script.txt (text|speed|pause)
-#   steps  comma list, default "words,audio,render,encode"
+#   steps  comma list, default "voice,words,audio,render,encode"; also: install, wxwords, sfxkit, sfxmix
 #   scale  1..2 (default 2)
 #   page   default web/short.html
 # Writes everything to out\<name>\ : STATUS.txt (one line per step, last line DONE or FAILED),
@@ -32,6 +32,13 @@ function Step($n, [scriptblock]$b) {
   $line = "{0,-7} {1} {2:n0} s" -f $n, $(if ($ok) { 'ok' } else { "FAILED (exit $LASTEXITCODE)" }), ((Get-Date) - $t).TotalSeconds
   $line | Out-File $status -Append -Encoding utf8
   if (-not $ok) { "FAILED at $n - see logs" | Out-File $status -Append -Encoding utf8; exit 1 }
+}
+Step 'install' { & "$Studio\kit\local\tools_extra.ps1" -Root $Root }   # Open Image Denoise + WhisperX
+Step 'wxwords' {
+  # exact word times: the known script force-aligned to the voice (WhisperX), then measured by sync_check
+  $v = $(if ((Ok $job.voice) -and (Test-Path "$Root\$($job.voice)")) { "$Root\$($job.voice)" } else { "$aud\voice.wav" })
+  & "$Root\pywx\Scripts\python.exe" "$Studio\kit\local\words_wx.py" $v "$vid\script.txt" "$out\words.json" --fps $fps
+  if ($LASTEXITCODE -eq 0) { & $py "$Studio\kit\qa\sync_check.py" $v "$out\words.json" *> "$out\sync_check.txt"; Get-Content "$out\sync_check.txt" | Select-Object -First 3; $global:LASTEXITCODE = 0 }
 }
 Step 'voice' {
   New-Item -ItemType Directory -Force $aud | Out-Null
