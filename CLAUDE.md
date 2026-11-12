@@ -2,6 +2,25 @@
 
 This repo is our studio for a YouTube channel of 3D engineering explainer videos (cars, engines, Wi-Fi, Bluetooth, chips...), made end to end by Claude. It is also Claude's memory between sessions.
 
+## Quality bar (user rules, 2026-11-12) - read before anything else
+The user's goal: awesome, high-quality 3D videos in mass production. A static picture is the worst failure.
+- MANDATORY: open `skills/ours/always-alive-3d/SKILL.md` before building or rendering any 3D scene, and follow it.
+  Rule zero: at every frame the character, the world and the camera are all moving. Animation quality comes first.
+- Also open, for the task at hand: `skills/vendor/animation-principles/` (the 12 principles, 3D, timing),
+  `skills/vendor/shader-skills/` (SDF, noise, particles, post effects), `skills/vendor/opus-sound-layer/` (sound).
+- Gates before ANY full render (no exceptions, even if the user is in a hurry: say why):
+  1. `python kit/qa/sync_check.py <voice.wav> <words.json>` passes (limit 0.08 s).
+  2. A 540x960 / 2-sample animatic of the whole film with full sound, watched and approved by the user.
+  3. `python kit/qa/alive_check.py <frames>` passes on the animatic (nothing frozen for more than 4 frames).
+  4. Contact sheet of every shot checked for intersections, halos, glitch-like effects and framing.
+- Events are tied to WORDS of the voice, never to hard-coded seconds. Reactions land 0-3 frames before the word.
+- Music sits 18-20 dB under the voice and drops out on gags. The user's own voice is the channel voice
+  (recorded by the user, sped up ~1.12x; reference sample on the PC: `in\voice_ref\my_voice_ref.wav`).
+- ALL rendering happens on the user's PC through the runner (started from `HowItReallyWorks\2-START RUNNER`).
+  Ask if the runner is on before dropping a render job. Never render in the cloud. Audience: teens and older.
+- Build reusable: characters, poses, props, timeline helpers and checks go in `kit/`, never only inside one video.
+  Every video must leave the kit better and add its lessons to LEARNINGS.md and to the always-alive-3d skill.
+
 ## Start of every session
 0. New Claude or new account? Read START-HERE.md first (portable handoff: where we are, how Asma works, PC folder).
 1. Read LEARNINGS.md (newest first) and styles/STYLE.md.
