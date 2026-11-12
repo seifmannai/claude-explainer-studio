@@ -8,8 +8,12 @@ html,body{margin:0;background:#000;overflow:hidden}
 #c{display:block;width:1080px;height:1920px}
 </style></head><body><canvas id="c"></canvas>
 <script src="scene.glsl.js"></script>
+<script src="../../../kit/char2d/stick.js"></script>
 <script>
-const TEST = null;           // e.g. [3.0, 16.5] renders only those moments (shot test)
+const Q = new URLSearchParams(location.search);       // e.g. ?t=16.5&ink=1&drawn=1 (the still job renders frame 12)
+const TEST = Q.get('t') ? Array(13).fill(+Q.get('t')) : null;   // e.g. [3.0, 16.5] renders only those moments (shot test)
+const INK = +(Q.get('ink') ?? 1);       // ink outlines on the 3D world (kit style: 3D world + drawn characters)
+const DRAWN = +(Q.get('drawn') ?? 1);   // Steve drawn in 2D (kit/char2d) instead of the 3D Steve
 const FPS = 24, SPP = 8, RW = 1080, RH = 1920;
 
 // ------------------------------------------------------------------ timeline helpers
@@ -228,6 +232,22 @@ function overlay(g, t, W, H) {
   if (t > 129.4) { const a = cl((t - 129.4) / 0.6); txt('HOW IT REALLY WORKS', 540, 960, 80, 'IB', '#ffffff', '#141414', 18, 0, a); }
 }
 
+// ------------------------------------------------------------------ drawn Steve (kit/char2d) placed in the 3D shot
+// Projects his feet with the same camera maths as the shader; height 1.78 m sets the drawing scale.
+// TODO(v2): word-driven acting (at("word")) instead of this state mapping.
+function project(c, P) {
+  const nrm = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); }, sub = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const ww = nrm(sub(c.q, c.p)), uu = nrm([-ww[2], 0, ww[0]]), vv = [uu[1] * ww[2] - uu[2] * ww[1], uu[2] * ww[0] - uu[0] * ww[2], uu[0] * ww[1] - uu[1] * ww[0]];
+  const d = sub(P, c.p), z = dot(d, ww), fl = 1 / Math.tan(c.f * Math.PI / 360);
+  return { x: (dot(d, uu) * fl / z * RH + RW) / 2, y: RH - (dot(d, vv) * fl / z * RH + RH) / 2, ppm: fl * RH / 2 / z, z };
+}
+function drawSteve(g, t, s, c, k) {
+  const pr = project(c, s.steve); if (pr.z < 0.3) return;
+  const name = s.arms > 0.5 || s.crouch > 0.5 ? 'panic' : s.slump > 0.5 ? 'defeat' : s.coffee > 0.5 ? 'deadpan' : 'suspicious';
+  const p = Stick.alive(Stick.pose(name, { look: [Math.sin(s.yaw) * 0.6, 0] }), t, 2.1);
+  Stick.draw(g, pr.x * k, pr.y * k, 1.78 * pr.ppm * k / 545, p, t);
+}
+
 // ------------------------------------------------------------------ GPU passes (same proven driver as the look tests)
 const VS = `#version 300 es
 in vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
@@ -254,14 +274,31 @@ void main(){ ivec2 p = ivec2(gl_FragCoord.xy); ivec2 sz = textureSize(A,0);
   if (uMode==2) r *= alb;
   o = vec4(r,1.); }`;
 const POST = `#version 300 es
-precision highp float; uniform sampler2D T; uniform vec2 uRes; uniform float uSepia, uFade; out vec4 o;
+precision highp float; uniform sampler2D T; uniform sampler2D G; uniform vec2 uRes; uniform float uSepia, uFade, uN, uInk, uBoil; out vec4 o;
+float hs(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(hs(i),hs(i+vec2(1,0)),f.x),mix(hs(i+vec2(0,1)),hs(i+1.),f.x),f.y); }
+vec4 gb(ivec2 q){ q = clamp(q, ivec2(0), ivec2(uRes)-1); vec4 g = texelFetch(G,q,0)/uN; return length(g.xyz) < 0.3 ? vec4(0.,0.,0.,500.) : vec4(normalize(g.xyz), g.w); }
+// Ink lines from the G-buffer: depth creases (2nd derivative, so flat floors stay clean) + normal breaks.
+// The sample point wobbles and the weight changes per drawing (uBoil), so the 3D lines boil like the drawn character.
+float ink(vec2 fc){
+  vec2 w = vec2(vn(fc/34. + uBoil*7.13), vn(fc/34. + uBoil*7.13 + 19.)) - 0.5;
+  ivec2 p = ivec2(fc + w*3.);
+  float r = 1. + 1.1*vn(fc/80. - uBoil*3.31);
+  vec4 c0 = gb(p); float e = 0.;
+  for (int k = 0; k < 4; k++){ float a = float(k)*0.785398; ivec2 o = ivec2(round(vec2(cos(a),sin(a))*r*1.6));
+    vec4 g1 = gb(p+o), g2 = gb(p-o);
+    float dz = abs(g1.w + g2.w - 2.*c0.w)/max(c0.w, 0.05);
+    float dn = c0.w > 499. ? 0. : max(1.-dot(g1.xyz,c0.xyz), 1.-dot(g2.xyz,c0.xyz));
+    if (c0.w > 499. && g1.w > 499. && g2.w > 499.) dz = 0.;
+    e = max(e, max(smoothstep(0.03, 0.08, dz), smoothstep(0.2, 0.5, dn))); }
+  return e * mix(1., 0.55, smoothstep(9., 30., min(c0.w, 30.)));   // far lines lighter
+}
 vec3 aces(vec3 x){ const mat3 A=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777);
   const mat3 B=mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602);
   vec3 v=A*x; vec3 a=v*(v+0.0245786)-0.000090537; vec3 b=v*(0.983729*v+0.4329510)+0.238081; return clamp(B*(a/b),0.,1.); }
 vec3 tap(vec2 uv){ return texture(T, uv).rgb; }
 void main(){ vec2 uv = gl_FragCoord.xy/uRes;
-  vec2 dc = (uv-0.5)*0.0018;
-  vec3 c = vec3(tap(uv+dc).r, tap(uv).g, tap(uv-dc).b);
+  vec3 c = tap(uv);   // no chromatic fringing: it read as a glitch in v1
   vec3 b = vec3(0.); float w = 0.;
   for (int i=-4;i<=4;i++) for (int j=-4;j<=4;j++){ vec2 off = vec2(i,j)*12./uRes; float k = exp(-float(i*i+j*j)/7.);
     b += max(tap(uv+off) - 1.0, 0.)*k; w += k; }
@@ -269,6 +306,12 @@ void main(){ vec2 uv = gl_FragCoord.xy/uRes;
   c *= 1.35; c = aces(c); c = pow(c, vec3(1./2.2));
   c = mix(vec3(dot(c,vec3(0.2126,0.7152,0.0722))), c, 1.08);
   c = c*c*(3.-2.*c)*0.18 + c*0.82;
+  if (uInk > 0.){
+    float l = max(dot(c, vec3(0.2126,0.7152,0.0722)), 1e-3), b5 = l*5.;                      // soft cel bands
+    float lq = (floor(b5) + smoothstep(0.3, 0.7, fract(b5)))/5.; c *= mix(1., lq/l, 0.3*uInk);
+    c *= 1. - 0.035*uInk*(vn(gl_FragCoord.xy/2.3 + uBoil*0.37) - 0.5);                        // paper grain
+    float e = ink(gl_FragCoord.xy)*uInk; c = mix(c, c*0.12 + vec3(0.05,0.045,0.06), e*0.92);  // coloured ink, not pure black
+  }
   float lu = dot(c, vec3(0.299,0.587,0.114));
   c = mix(c, vec3(lu*1.07, lu*0.92, lu*0.72), uSepia*0.9);
   float vig = smoothstep(1.2, 0.3, length((uv-0.5)*vec2(0.85,1.)));
@@ -322,7 +365,7 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
     [s.carY, s.carVis, s.ropeVis, s.ropeSnap, s.wheelVis, s.wheelAng, s.teeth, s.clawVis, s.clawOut, s.spark,
      s.steve[0] + (t > 41.86 && t < 44.96 ? 0.006 * Math.sin(t * 90) : 0), s.steve[1], s.steve[2], s.arms, s.crouch, s.slump, s.hairUp, s.hairLag, s.coffee, s.bag,
      s.cwVis, s.cwY, s.motorVis, s.motorSc, s.govVis, s.govAng, s.govOut, s.springVis, s.doorOpen, s.doorY, s.doorVis, s.beam,
-     s.carbon, s.keys, s.ropeCut, s.steveVis, s.roof, s.yaw, s.rails, s.pocket, s.walk].forEach((v, i) => (Pv[i] = v));
+     s.carbon, s.keys, s.ropeCut, DRAWN ? 0 : s.steveVis, s.roof, s.yaw, s.rails, s.pocket, s.walk].forEach((v, i) => (Pv[i] = v));
     const dist = Math.hypot(...c.p.map((v, i) => v - c.q[i]));
     const lampK = Math.max(0, Math.floor(c.q[1] / 3.6));
     // path trace
@@ -349,8 +392,12 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, RW, RH); gl.useProgram(P2);
     gl.uniform2f(U1(P2, 'uRes'), RW, RH); gl.uniform1f(U1(P2, 'uSepia'), s.sepia); gl.uniform1f(U1(P2, 'uFade'), s.fade);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[src]); gl.uniform1i(U1(P2, 'T'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accN); gl.uniform1i(U1(P2, 'G'), 1);
+    gl.uniform1f(U1(P2, 'uN'), SPP); gl.uniform1f(U1(P2, 'uInk'), INK); gl.uniform1f(U1(P2, 'uBoil'), f % 997);
+    gl.activeTexture(gl.TEXTURE0);
     await blocks(540, 128);
     const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, W, H);
+    if (DRAWN && s.steveVis > 0.5 && s.steve) drawSteve(g, t, s, c, W / RW);
     if (s.fade < 0.99 || t > 129.4) overlay(g, t, W, H);
   };
   window.hdriUsed = () => `ray-marched path tracer, ${SPP} spp + denoiser, ${RW}x${RH}, compile ${window.compileSeconds?.toFixed(1)} s`;

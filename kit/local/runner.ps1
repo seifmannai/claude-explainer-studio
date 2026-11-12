@@ -32,7 +32,10 @@ while ($true) {
           Invoke-WebRequest -Uri "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/$($job.slug)_2k.hdr" -OutFile "$Studio\assets\hdri\studio.hdr" *>> $log
           "saved $($job.slug) (Poly Haven, CC0)" | Out-File $log -Append
         } else { 'rejected: slug' | Out-File $log -Append } }
-      'still' { if ((Ok $job.page) -and (Ok $job.name)) { node "$Studio\kit\local\local_render.mjs" still $Studio $job.page "$Root\out\stills" $job.name *>> $log } else { 'rejected: page/name' | Out-File $log -Append } }
+      'still' {
+        # optional "query": page options, e.g. "t=16.5&ink=1&drawn=1" (letters, digits, = & . , - only)
+        $pg = $job.page; if ($job.query -and ("$($job.query)" -match '^[A-Za-z0-9_=&.,\-]+$')) { $pg = "$($job.page)?$($job.query)" }
+        if ((Ok $job.page) -and (Ok $job.name)) { node "$Studio\kit\local\local_render.mjs" still $Studio $pg "$Root\out\stills" $job.name *>> $log } else { 'rejected: page/name' | Out-File $log -Append } }
       'tools' { Write-Host "   installing Blender, faster-whisper, Kokoro, Chatterbox, HyperFrames (big downloads, 20-40 min)" -ForegroundColor Cyan; & "$Studio\kit\local\tools.ps1" -Root $Root *>> $log }
       'words' {
         if ((Ok $job.audio) -and (Ok $job.name)) {

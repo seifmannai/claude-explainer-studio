@@ -1,5 +1,20 @@
 # Learnings (newest first)
 
+
+## 2026-11-12 (evening) - new style direction: 3D world + drawn characters
+- The SDF 3D Steve hit a ceiling (mannequin face, expensive). New kit style: the world stays path-traced 3D with
+  ink outlines (G-buffer depth creases + normal breaks, soft cel bands, paper grain) and characters are drawn in
+  2D on top (`kit/char2d/stick.js`), placed with the same camera projection as the shader (feet + 1.78 m height).
+- Line boil: every path goes through a sketch layer that redraws it differently on EVERY frame (Stick.boilFps = 24;
+  12 = classic "on twos"). On twos, alive_check counted 33 % of frames as identical; on ones it is 0 %.
+- Limbs: two-bone IK, tapered tubes (sleeves, trousers), mitten hands, shoes; elbows/knees pick the outward-and-down side.
+  Arms longer than the shoulder-hand distance make spaghetti loops: keep arm length ~1.3x the rest distance.
+- The ink lines in 3D boil too (sample point wobbles per frame), so world and character feel drawn by the same hand.
+- Chromatic fringing removed from the post pass (it read as a glitch).
+- PC tools: `make` step `install` = Open Image Denoise + WhisperX (own env pywx, torch 2.6 cu124 for the GTX 1060);
+  step `wxwords` = force-align the known script to the voice, then sync_check writes out/<name>/sync_check.txt.
+- Runner `still` job takes an optional "query" (e.g. "t=16.5&ink=1&drawn=1") for A/B style stills.
+
 ## 2026-11-12 - video 3 v1 rejected by the user ("so bad"): what went wrong and the rules that came out of it
 - Rendered overnight (3,154 frames, ~6 s/frame on the GTX 1060, 5.5 h) WITHOUT an approved animatic. A whole night wasted. Rule: animatic gate.
 - Static picture: kit/qa/alive_check.py on v1 = 45 % of frames near-identical, 54.6 s of frozen picture, 85 failures. Steve only switched between poses and slid; the building, rope and camera were dead. New skill skills/ours/always-alive-3d (mandatory) + the 12-principles skills.
