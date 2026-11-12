@@ -2,6 +2,9 @@
 # Claude drops job files in jobs\ ; only the actions listed below can run (make = a whole video, selfupdate = new runner from GitHub). Logs go to logs\.
 $Root = $PSScriptRoot; $Studio = "$Root\studio"
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+# portable Node from the install step (<Root>\node) wins over anything else
+$nx = Get-ChildItem "$Root\node" -Recurse -Filter node.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($nx) { $env:Path = "$($nx.DirectoryName);$env:Path" }
 $Safe = '^[A-Za-z0-9_\-./]+$'
 function Ok($v) { return ($v -is [string]) -and ($v -match $Safe) -and ($v -notmatch '\.\.') }
 Write-Host "How It Really Works runner is ON. Keep this window open (Ctrl+C to stop)." -ForegroundColor Green

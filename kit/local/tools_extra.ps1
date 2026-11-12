@@ -25,6 +25,22 @@ if ($exe) {
   'OIDN OK'
 } else { 'OIDN NOT INSTALLED' }
 
+'== Node.js (portable) =='
+# the PC lost its system Node on 2026-11-12; the runner puts <Root>\node first on PATH
+$nd = "$Root\node"
+$nexe = Get-ChildItem $nd -Recurse -Filter node.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $nexe) {
+  New-Item -ItemType Directory -Force $nd | Out-Null
+  try {
+    $lts = (Invoke-RestMethod 'https://nodejs.org/dist/index.json') | Where-Object { $_.lts } | Select-Object -First 1
+    $zip = "node-$($lts.version)-win-x64.zip"; "downloading $zip"
+    Invoke-WebRequest "https://nodejs.org/dist/$($lts.version)/$zip" -OutFile "$nd\node.zip"
+    Expand-Archive "$nd\node.zip" $nd -Force; Remove-Item "$nd\node.zip"
+  } catch { "Node download failed: $_" }
+  $nexe = Get-ChildItem $nd -Recurse -Filter node.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+if ($nexe) { "node: $($nexe.FullName) $(& $nexe.FullName --version)"; 'NODE OK' } else { 'NODE NOT INSTALLED' }
+
 '== WhisperX =='
 $wx = "$Root\pywx\Scripts\python.exe"
 if (-not (Test-Path $wx)) {
