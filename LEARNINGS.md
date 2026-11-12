@@ -1,5 +1,26 @@
 # Learnings (newest first)
 
+## 2026-11-12 - video 3 v1 rejected by the user ("so bad"): what went wrong and the rules that came out of it
+- Rendered overnight (3,154 frames, ~6 s/frame on the GTX 1060, 5.5 h) WITHOUT an approved animatic. A whole night wasted. Rule: animatic gate.
+- Static picture: kit/qa/alive_check.py on v1 = 45 % of frames near-identical, 54.6 s of frozen picture, 85 failures. Steve only switched between poses and slid; the building, rope and camera were dead. New skill skills/ours/always-alive-3d (mandatory) + the 12-principles skills.
+- Out of sync: the audio in the MP4 was at offset 0.000 s, but faster-whisper word timings were 0.34 s early on median (worst 1.5 s), so captions, props and reactions were all off. Nobody measured. New kit/qa/sync_check.py (energy onsets vs sentence starts, limit 0.08 s; --fix snaps sentences to the nearest onset, which can pick the wrong onset when a sentence is more than ~0.5 s off: re-align first). Events must hang on words, not seconds (v1 hard-coded seconds).
+- Music: the generated bed (plucks + brushes at full level) was "too loud and annoying". Rule: 18-20 dB under the voice, no busy percussion, out on gags.
+- Things that read as glitches: drawn white speed lines; chromatic fringing + bloom on an over-bright white shirt (purple halo around Steve); the wheel sunk into the roof slab and the rope passing through the floor; the lagging-hair gag (looked like a beard / a crown stuck in his chest). Rules in always-alive-3d section 6.
+- make.ps1 ran sfxmix AFTER encode (silent MP4 until a second encode job). Fixed: sound steps now come before render/encode.
+- Blender/Eevee test (Blender 5.2 via computer use, exec of a build script in the Python console): 6.3 s/frame vs 14.5 s for our tracer at 1440p, but the user rejected the look. ArrayModifier offset is `constant_offset_displace`.
+- Voice: the user records the script himself (sped up 1.12x with atempo). The Kokoro read was "dull".
+- opus-sound-layer on the PC: kit of ~1,100 CC0 sounds + Openverse search works (make step sfxkit); CC0 music search found nothing usable; mix.py takes absolute paths and has no trim/gain per cue (use short sounds, weight hero/support).
+- The runner must be started from HowItReallyWorks\ (the -portable copy watches another jobs folder).
+
+## 2026-11-10 - video 3 look tests (ray-marched path tracer on the GTX 1060)
+- Target audience is teens+: adult proportions, deadpan humour, semi-realistic materials. A round clay-toy Steve "looks for kids".
+- Page: videos/steve-elevator/web (scene.glsl.js + short.html). 1080x1920 inside, 8 spp + a-trous denoiser (albedo-demodulated, G-buffer via MRT) = ~9 s per still, ~6 s/frame average in the film; 4K 32 spp = 106 s.
+- ANGLE/D3D11 (fxc) unrolls and inlines every loop: use `#define ZERO (min(int(uSeed),0))` in every loop bound, one call site for map/march/direct, compile after window load with KHR_parallel_shader_compile (~20 s; first draw adds ~20 s more).
+- `gl.finish()` does not block in Chrome: wait with fenceSync + clientWaitSync polled via setTimeout, or page.screenshot times out.
+- Windows TDR (~2 s per GPU call): draw in 256x32 scissor blocks, tile the post pass too.
+- RGBA32F textures with LINEAR filtering are incomplete (read as black): NEAREST for 32F, LINEAR only for 16F.
+- lemo-opuscar: `git clone --depth 1 --filter=blob:none --sparse` works from the cloud; 66 styles have poster.jpg for a pick sheet.
+
 ## 2026-11-09 - video 2 topic research
 - ig-viral on YouTube works from the desktop browser: open youtube.com, then fetch('/@handle/shorts') in page JS and read overlayMetadata (title + views) from ytInitialData; ~10 channels in 2 calls. Some handles return no data (Lesics, ScienceInsider): try another spelling.
 - hookscore.py rewards a number/name, a stakes word (not, never, wrong, still...), the payoff in the first 3 words and "you". Write the hook naturally first, then fix only what it flags; don't stuff keywords.
