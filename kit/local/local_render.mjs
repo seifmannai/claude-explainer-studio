@@ -20,7 +20,7 @@ async function open(how) {
     : await chromium.launch({ channel: 'msedge', headless: how === 'headless', args: how === 'headless' ? GPU_ARGS : [...GPU_ARGS, ...OFFSCREEN] });
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: mode === 'still' ? 2 : SCALE });
   p.on('pageerror', (e) => console.log('PAGEERROR', e.message));
-  await p.goto(`http://127.0.0.1:${srv.address().port}/${page}`);
+  await p.goto(`http://127.0.0.1:${srv.address().port}/${page}${process.env.PAGE_QUERY ? '?' + process.env.PAGE_QUERY : ''}`);
   await p.waitForFunction('window.done === true', null, { timeout: 300000 });
   return { b, p, gpu: await p.evaluate(() => window.glInfo || 'unknown') };
 }
