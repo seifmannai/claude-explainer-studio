@@ -36,7 +36,13 @@ while ($true) {
         # optional "query": page options, e.g. "t=16.5&ink=1&drawn=1" (letters, digits, = & . , - only)
         # the query goes through an env var: a '&' on the command line breaks node when it is a .cmd shim (2026-11-12 bug)
         $env:PAGE_QUERY = $(if ($job.query -and ("$($job.query)" -match '^[A-Za-z0-9_=&.,\-]+$')) { "$($job.query)" } else { '' })
-        if ((Ok $job.page) -and (Ok $job.name)) { node "$Studio\kit\local\local_render.mjs" still $Studio $job.page "$Root\out\stills" $job.name *>> $log; "node exit code: $LASTEXITCODE" | Out-File $log -Append } else { 'rejected: page/name' | Out-File $log -Append }
+        if ((Ok $job.page) -and (Ok $job.name)) {
+          # find the real node.exe (a .cmd/.ps1 shim or a missing PATH entry made stills exit silently on 2026-11-12)
+          $node = @((Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source), "$env:ProgramFiles\nodejs\node.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+          "node: $node | query: $env:PAGE_QUERY" | Out-File $log -Append
+          try { & $node "$Studio\kit\local\local_render.mjs" still $Studio $job.page "$Root\out\stills" $job.name *>> $log; "node exit code: $LASTEXITCODE" | Out-File $log -Append }
+          catch { "ERROR: $_" | Out-File $log -Append }
+        } else { 'rejected: page/name' | Out-File $log -Append }
         $env:PAGE_QUERY = '' }
       'tools' { Write-Host "   installing Blender, faster-whisper, Kokoro, Chatterbox, HyperFrames (big downloads, 20-40 min)" -ForegroundColor Cyan; & "$Studio\kit\local\tools.ps1" -Root $Root *>> $log }
       'words' {
