@@ -24,6 +24,13 @@ The user's new direction (2026-11-12 evening), approved in principle:
 - Reference style the user likes: rough hand-drawn comic faces (thick brows, big expressive eyes and mouths),
   stick-ish people with real limbs. Use as inspiration only; never copy other channels' characters.
 
+## Done 2026-11-12 night (steps 1-4)
+- selfupdate OK; install OK: OIDN, WhisperX (+align model) and a PORTABLE Node (<Root>\node; system Node is gone from the PC, runner puts it first on PATH).
+- Style stills done: out\stills\style_ink.png / style_noink.png (t=16.5, SNAP moment). Framing and feet OK. Sent to user, waiting for the pick.
+  Note: shader compile is now ~178 s per page load (was ~20 s): keep an eye on it for the animatic.
+- Word timings: steve_words2 (WhisperX) snapped with sync_check --fix -> videos/steve-elevator/audio/words.json, gate 1 PASSES (53/53, 0.000 s).
+- NEXT = step 5 (word-driven v2 timeline) once the user picks ink or no ink.
+
 ## Next steps, in order (ask "is your runner on?" before dropping ANY job)
 1. Drop `{"action":"selfupdate"}` (runner now accepts `"query"` on still jobs).
 2. Drop `{"action":"make","slug":"steve-elevator","name":"tools_1112","steps":"install"}` -> installs

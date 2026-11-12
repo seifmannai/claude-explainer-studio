@@ -1,6 +1,11 @@
 # Learnings (newest first)
 
 
+## 2026-11-12 (night) - runner stills failing silently
+- Stills "finished" in 0 s with no image: Node.js had disappeared from the PC (no Program Files\nodejs, not on PATH) and the runner logged nothing. Fix: the install step now downloads a portable Node to <Root>\node and the runner prefers it; the still branch logs the node path, exit code and any error. Always log the tool path + exit code in runner branches.
+- Page query (?t=..&ink=..) now goes to Node via the PAGE_QUERY env var, never on the command line ('&' is unsafe there).
+- WhisperX timings ran 0.08-0.14 s late on 5 of 53 sentences; `sync_check.py --fix` snaps them to the real onsets. sync_check now counts speech at sample 0 as an onset (it flagged a correct first sentence).
+
 ## 2026-11-12 (evening) - new style direction: 3D world + drawn characters
 - The SDF 3D Steve hit a ceiling (mannequin face, expensive). New kit style: the world stays path-traced 3D with
   ink outlines (G-buffer depth creases + normal breaks, soft cel bands, paper grain) and characters are drawn in
