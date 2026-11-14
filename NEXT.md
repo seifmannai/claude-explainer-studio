@@ -31,6 +31,13 @@ The user's new direction (2026-11-12 evening), approved in principle:
 - Word timings: steve_words2 (WhisperX) snapped with sync_check --fix -> videos/steve-elevator/audio/words.json, gate 1 PASSES (53/53, 0.000 s).
 - NEXT = step 5 (word-driven v2 timeline) once the user picks ink or no ink.
 
+## Done 2026-11-14 (style v2.1 on the PC)
+- Ink lines ~2x thicker/darker, no ink on or around light sources, drawn Steve tinted by the scene (ambient + lamp key +
+  cool shade) and occluded by nearer geometry (2nd post pass with uMask/uCharZ). Stills: out\stills\style3_snap.png,
+  style3_hero.png (t=66, close shot in the car). Sent to the user as style3_two_shots.jpg; waiting for his verdict.
+- Good still moments: t=16.5 (snap, medium), t=66 (hero close). t=6 is a wide where Steve is cut off: avoid.
+- A still costs ~6 min on the GTX 1060 (185 s shader compile + ~180 s render at 2x).
+
 ## Next steps, in order (ask "is your runner on?" before dropping ANY job)
 1. Drop `{"action":"selfupdate"}` (runner now accepts `"query"` on still jobs).
 2. Drop `{"action":"make","slug":"steve-elevator","name":"tools_1112","steps":"install"}` -> installs
