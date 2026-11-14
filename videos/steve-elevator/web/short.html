@@ -241,11 +241,36 @@ function project(c, P) {
   const d = sub(P, c.p), z = dot(d, ww), fl = 1 / Math.tan(c.f * Math.PI / 360);
   return { x: (dot(d, uu) * fl / z * RH + RW) / 2, y: RH - (dot(d, vv) * fl / z * RH + RH) / 2, ppm: fl * RH / 2 / z, z };
 }
-function drawSteve(g, t, s, c, k) {
-  const pr = project(c, s.steve); if (pr.z < 0.3) return;
+// Lighting: drawn on its own layer, multiplied by the scene's average colour around him, warm light from the
+// shaft lamp side, a cool shade on the far side; then composited. Occlusion is the 2nd post pass (uMask).
+let LAY = null;
+function drawSteve(g, t, s, c, k, src) {
+  const pr = project(c, s.steve); if (pr.z < 0.3) return null;
+  const W = g.canvas.width, H = g.canvas.height;
+  if (!LAY) LAY = [0, 1, 2].map(() => { const x = document.createElement('canvas'); x.width = W; x.height = H; return x.getContext('2d'); });
+  const [L0, L1, T1] = LAY; T1.canvas.width = T1.canvas.height = 1;
   const name = s.arms > 0.5 || s.crouch > 0.5 ? 'panic' : s.slump > 0.5 ? 'defeat' : s.coffee > 0.5 ? 'deadpan' : 'suspicious';
   const p = Stick.alive(Stick.pose(name, { look: [Math.sin(s.yaw) * 0.6, 0] }), t, 2.1);
-  Stick.draw(g, pr.x * k, pr.y * k, 1.78 * pr.ppm * k / 545, p, t);
+  const X = pr.x * k, Y = pr.y * k, hpx = 1.78 * pr.ppm * k;
+  L0.clearRect(0, 0, W, H); Stick.draw(L0, X, Y, hpx / 545, p, t);
+  // average scene colour around him
+  T1.drawImage(src, X - hpx * 0.6, Y - hpx * 1.1, hpx * 1.2, hpx * 1.2, 0, 0, 1, 1);
+  const [r, gg, b] = T1.getImageData(0, 0, 1, 1).data, lum = Math.max((0.2126 * r + 0.7152 * gg + 0.0722 * b) / 255, 0.05);
+  const tint = [r, gg, b].map((v) => Math.round(255 * Math.min(1.04, Math.max(0.62, (1 - 0.32 + 0.32 * (v / 255) / lum * 0.55) * (0.86 + 0.2 * Math.min(lum / 0.45, 1.3))))));
+  L1.globalCompositeOperation = 'source-over'; L1.clearRect(0, 0, W, H); L1.drawImage(L0.canvas, 0, 0);
+  L1.globalCompositeOperation = 'multiply'; L1.fillStyle = `rgb(${tint})`; L1.fillRect(0, 0, W, H);
+  // warm key light from the lamp, cool shade on the other side
+  const lampK = Math.max(0, Math.floor(c.q[1] / 3.6)), lp = project(c, [-0.94, lampK * 3.6 + 2.9, 0.15]);
+  const lx = lp.z > 0 ? lp.x * k : X - hpx, ly = lp.z > 0 ? lp.y * k : Y - hpx;
+  const side = Math.sign(lx - X) || -1;
+  L1.globalCompositeOperation = 'source-atop';
+  const gr = L1.createRadialGradient(lx, ly, 0, lx, ly, hpx * 1.6); gr.addColorStop(0, 'rgba(255,196,130,0.30)'); gr.addColorStop(1, 'rgba(255,196,130,0)');
+  L1.fillStyle = gr; L1.fillRect(0, 0, W, H);
+  const sh = L1.createLinearGradient(X + side * hpx * 0.1, 0, X - side * hpx * 0.35, 0); sh.addColorStop(0, 'rgba(20,26,44,0)'); sh.addColorStop(1, 'rgba(20,26,44,0.28)');
+  L1.fillStyle = sh; L1.fillRect(0, 0, W, H);
+  L1.globalCompositeOperation = 'destination-in'; L1.drawImage(L0.canvas, 0, 0); L1.globalCompositeOperation = 'source-over';
+  g.drawImage(L1.canvas, 0, 0);
+  return { dist: Math.hypot(...[0, 1, 0].map((o, i) => s.steve[i] + o - c.p[i])) };
 }
 
 // ------------------------------------------------------------------ GPU passes (same proven driver as the look tests)
@@ -274,7 +299,7 @@ void main(){ ivec2 p = ivec2(gl_FragCoord.xy); ivec2 sz = textureSize(A,0);
   if (uMode==2) r *= alb;
   o = vec4(r,1.); }`;
 const POST = `#version 300 es
-precision highp float; uniform sampler2D T; uniform sampler2D G; uniform vec2 uRes; uniform float uSepia, uFade, uN, uInk, uBoil; out vec4 o;
+precision highp float; uniform sampler2D T; uniform sampler2D G; uniform vec2 uRes; uniform float uSepia, uFade, uN, uInk, uBoil, uMask, uCharZ; out vec4 o;
 float hs(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(hs(i),hs(i+vec2(1,0)),f.x),mix(hs(i+vec2(0,1)),hs(i+1.),f.x),f.y); }
 vec4 gb(ivec2 q){ q = clamp(q, ivec2(0), ivec2(uRes)-1); vec4 g = texelFetch(G,q,0)/uN; return length(g.xyz) < 0.3 ? vec4(0.,0.,0.,500.) : vec4(normalize(g.xyz), g.w); }
@@ -283,15 +308,15 @@ vec4 gb(ivec2 q){ q = clamp(q, ivec2(0), ivec2(uRes)-1); vec4 g = texelFetch(G,q
 float ink(vec2 fc){
   vec2 w = vec2(vn(fc/34. + uBoil*7.13), vn(fc/34. + uBoil*7.13 + 19.)) - 0.5;
   ivec2 p = ivec2(fc + w*3.);
-  float r = 1. + 1.1*vn(fc/80. - uBoil*3.31);
+  float r = 1.9 + 1.5*vn(fc/80. - uBoil*3.31);                     // line weight 2-3x v1, varies along the line
   vec4 c0 = gb(p); float e = 0.;
-  for (int k = 0; k < 4; k++){ float a = float(k)*0.785398; ivec2 o = ivec2(round(vec2(cos(a),sin(a))*r*1.6));
+  for (int k = 0; k < 4; k++){ float a = float(k)*0.785398; ivec2 o = ivec2(round(vec2(cos(a),sin(a))*r*1.4));
     vec4 g1 = gb(p+o), g2 = gb(p-o);
     float dz = abs(g1.w + g2.w - 2.*c0.w)/max(c0.w, 0.05);
     float dn = c0.w > 499. ? 0. : max(1.-dot(g1.xyz,c0.xyz), 1.-dot(g2.xyz,c0.xyz));
     if (c0.w > 499. && g1.w > 499. && g2.w > 499.) dz = 0.;
-    e = max(e, max(smoothstep(0.03, 0.08, dz), smoothstep(0.2, 0.5, dn))); }
-  return e * mix(1., 0.55, smoothstep(9., 30., min(c0.w, 30.)));   // far lines lighter
+    e = max(e, max(smoothstep(0.02, 0.06, dz), smoothstep(0.14, 0.4, dn))); }
+  return e * mix(1., 0.7, smoothstep(9., 30., min(c0.w, 30.)));    // far lines a bit lighter
 }
 vec3 aces(vec3 x){ const mat3 A=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777);
   const mat3 B=mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602);
@@ -299,6 +324,7 @@ vec3 aces(vec3 x){ const mat3 A=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.1
 vec3 tap(vec2 uv){ return texture(T, uv).rgb; }
 void main(){ vec2 uv = gl_FragCoord.xy/uRes;
   vec3 c = tap(uv);   // no chromatic fringing: it read as a glitch in v1
+  float lraw = dot(c, vec3(0.2126,0.7152,0.0722));   // HDR: light sources are > 1.5
   vec3 b = vec3(0.); float w = 0.;
   for (int i=-4;i<=4;i++) for (int j=-4;j<=4;j++){ vec2 off = vec2(i,j)*12./uRes; float k = exp(-float(i*i+j*j)/7.);
     b += max(tap(uv+off) - 1.0, 0.)*k; w += k; }
@@ -310,7 +336,8 @@ void main(){ vec2 uv = gl_FragCoord.xy/uRes;
     float l = max(dot(c, vec3(0.2126,0.7152,0.0722)), 1e-3), b5 = l*5.;                      // soft cel bands
     float lq = (floor(b5) + smoothstep(0.3, 0.7, fract(b5)))/5.; c *= mix(1., lq/l, 0.3*uInk);
     c *= 1. - 0.035*uInk*(vn(gl_FragCoord.xy/2.3 + uBoil*0.37) - 0.5);                        // paper grain
-    float e = ink(gl_FragCoord.xy)*uInk; c = mix(c, c*0.12 + vec3(0.05,0.045,0.06), e*0.92);  // coloured ink, not pure black
+    float e = ink(gl_FragCoord.xy)*uInk*(1. - smoothstep(1.2, 2.4, lraw));   // no ink on lamps (v1 test: black blob)
+    c = mix(c, c*0.08 + vec3(0.045,0.04,0.055), e);  // coloured ink, nearly black
   }
   float lu = dot(c, vec3(0.299,0.587,0.114));
   c = mix(c, vec3(lu*1.07, lu*0.92, lu*0.72), uSepia*0.9);
@@ -318,6 +345,9 @@ void main(){ vec2 uv = gl_FragCoord.xy/uRes;
   c *= mix(0.62 - 0.15*uSepia, 1., vig);
   c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233)))*43758.5453)-0.5)*(0.018 + 0.03*uSepia);
   c *= 1. - uFade;
+  if (uMask > 0.){ vec4 gm = texelFetch(G, ivec2(gl_FragCoord.xy), 0)/uN;
+    float a = length(gm.xyz) < 0.3 ? 0. : 1. - smoothstep(uCharZ - 0.6, uCharZ - 0.35, gm.w);
+    o = vec4(c*a, a); return; }
   o = vec4(c,1.); }`;
 
 window.addEventListener('load', () => setTimeout(() => (async () => {
@@ -393,11 +423,18 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
     gl.uniform2f(U1(P2, 'uRes'), RW, RH); gl.uniform1f(U1(P2, 'uSepia'), s.sepia); gl.uniform1f(U1(P2, 'uFade'), s.fade);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, pp[src]); gl.uniform1i(U1(P2, 'T'), 0);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accN); gl.uniform1i(U1(P2, 'G'), 1);
-    gl.uniform1f(U1(P2, 'uN'), SPP); gl.uniform1f(U1(P2, 'uInk'), INK); gl.uniform1f(U1(P2, 'uBoil'), f % 997);
+    gl.uniform1f(U1(P2, 'uN'), SPP); gl.uniform1f(U1(P2, 'uInk'), INK); gl.uniform1f(U1(P2, 'uBoil'), f % 997); gl.uniform1f(U1(P2, 'uMask'), 0);
     gl.activeTexture(gl.TEXTURE0);
     await blocks(540, 128);
     const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, W, H);
-    if (DRAWN && s.steveVis > 0.5 && s.steve) drawSteve(g, t, s, c, W / RW);
+    if (DRAWN && s.steveVis > 0.5 && s.steve) {
+      const st = drawSteve(g, t, s, c, W / RW, out);
+      if (st) {   // 2nd post pass: only the scene IN FRONT of Steve (car posts, rails), drawn back over him
+        gl.uniform1f(U1(P2, 'uMask'), 1); gl.uniform1f(U1(P2, 'uCharZ'), st.dist);
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); await blocks(540, 128);
+        gl.uniform1f(U1(P2, 'uMask'), 0); g.drawImage(cv, 0, 0, W, H);
+      }
+    }
     if (s.fade < 0.99 || t > 129.4) overlay(g, t, W, H);
   };
   window.hdriUsed = () => `ray-marched path tracer, ${SPP} spp + denoiser, ${RW}x${RH}, compile ${window.compileSeconds?.toFixed(1)} s`;
