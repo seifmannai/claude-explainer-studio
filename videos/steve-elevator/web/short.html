@@ -267,7 +267,7 @@ const ACT = ['deadpan', ['deadpan', { look: [0.1, -0.8] }], 'defeat', 'suspiciou
   ['relief', { sweat: 1 }], 'angry', 'defeat', 'idea', 'panic', 'suspicious', 'deadpan', 'smug', 'deadpan', 'idea', 'panic', 'deadpan',
   'suspicious', 'idea', 'relief', 'suspicious', 'deadpan', 'panic', 'angry', 'smug', 'angry', 'relief', 'suspicious', ['angry', { mouth: 'flat' }],
   'deadpan', 'suspicious', 'panic', 'idea', 'smug', 'relief', ['smug', { look: [0, 0.2] }], ['relief', { lid: [0.2, 0.2] }], 'suspicious', 'defeat', 'smug', 'defeat'];
-const actPose = (k) => { const a = ACT[Math.max(0, Math.min(ACT.length - 1, k))]; return Array.isArray(a) ? Stick.pose(a[0], a[1]) : Stick.pose(a); };
+const actPose = (k) => { const a = ACT[Math.max(0, Math.min(ACT.length - 1, k))]; return Stick.vary(Array.isArray(a) ? Stick.pose(a[0], a[1]) : Stick.pose(a), k + 1, 1); };   // every line a new body position
 let SENT = null;
 function acting(tn, s) {
   if (!SENT) { SENT = []; for (const w of WORDS) if (SENT[w.s] === undefined) SENT[w.s] = w.t; }

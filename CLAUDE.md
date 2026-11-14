@@ -10,6 +10,7 @@ The user's goal: awesome, high-quality 3D videos in mass production. A static pi
   looks dull, I want it to move a lot, like orbits"). Every shot = size + angle + one dominant move (kit/camera/rigs.js:
   orbit, crane, dolly, follow, whip, push, handheld, kick) + a reason; characters never slide, they walk (Stick.walk).
   Film theory reference: skills/vendor/director-skill (MIT).
+- Never the same character position twice (user, 2026-11-14): every line a new pose and a new place in frame (Stick.vary).
 - Also open, for the task at hand: `skills/vendor/animation-principles/` (the 12 principles, 3D, timing),
   `skills/vendor/shader-skills/` (SDF, noise, particles, post effects), `skills/vendor/opus-sound-layer/` (sound).
 - Gates before ANY full render (no exceptions, even if the user is in a hurry: say why):

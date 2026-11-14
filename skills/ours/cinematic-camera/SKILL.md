@@ -47,6 +47,12 @@ For every script line write one row: `word that cuts | shot size | angle | move 
   hips bob 1-2 cm; head lags; turn the face toward the direction of travel (`turn`).
 - Entrances and exits: walk into frame, never pop. A character turning round turns head first, then the body (2-4 frames later).
 
+## 4b. Never the same position twice (user rule, 2026-11-14)
+- Every line of the script gets a NEW body position: different arm gesture, stance, lean, head tilt, face turn. A pose
+  that already appeared in the film is a bug, like a frozen frame. Use `Stick.vary(pose, uniqueSeed)` on every beat
+  (seed = sentence index) on top of the expression; hand-pose the big moments.
+- The character's place in the frame changes too: left third, right third, near, far, low, high - not always centred.
+
 ## 5. Checklist on the animatic contact sheet
 - [ ] Every shot has a named move and a reason. No two consecutive shots with the same size and angle.
 - [ ] At least one orbit or crane per fix / chapter; the hook opens on a move.

@@ -108,6 +108,22 @@
     return p;
   }
 
+  // vary: a NEW body position from any expression (user rule 2026-11-14: never the same position twice). seed = a unique
+  // number per beat (e.g. sentence index); amt 0..1. Changes arms (a gesture family), stance, lean, tilt, turn and weight.
+  const GEST = [[[-70, 330], [95, 205]], [[-150, 260], [150, 255]], [[-40, 300], [40, 310]], [[-95, 175], [170, 360]], [[-170, 380], [70, 190]],
+    [[-60, 245], [120, 420]], [[-110, 200], [60, 300]], [[-30, 360], [130, 230]], [[-135, 300], [100, 170]], [[-85, 420], [85, 180]]];
+  function vary(p0, seed, amt = 1) {
+    const p = JSON.parse(JSON.stringify(p0)), r = (k) => { const v = Math.sin(seed * 91.7 + k * 37.3) * 43758.5453; return v - Math.floor(v); };
+    const gst = GEST[Math.floor(r(1) * GEST.length)], mir = r(2) < 0.5 ? 1 : -1, k = amt * 0.65;
+    const gL = mir > 0 ? gst[0] : [-gst[1][0], gst[1][1]], gR = mir > 0 ? gst[1] : [-gst[0][0], gst[0][1]];
+    p.handL = [lerp(p.handL[0], gL[0], k), lerp(p.handL[1], gL[1], k)]; p.handR = [lerp(p.handR[0], gR[0], k), lerp(p.handR[1], gR[1], k)];
+    const st = (r(3) - 0.5) * 50 * amt; p.footL = [p.footL[0] - 12 * amt * r(4) + st * 0.4, p.footL[1]]; p.footR = [p.footR[0] + 12 * amt * r(5) + st * 0.4, p.footR[1]];
+    p.lean += (r(6) - 0.5) * 0.16 * amt; p.tilt += (r(7) - 0.5) * 0.18 * amt; p.turn = (p.turn || 0) + (r(8) - 0.5) * 0.9 * amt;
+    p.hip = [p.hip[0] + (r(9) - 0.5) * 24 * amt, p.hip[1] - r(10) * 10 * amt]; p.shoulders += (r(11) - 0.5) * 8 * amt;
+    p.look = [p.look[0] + (r(12) - 0.5) * 0.5 * amt, p.look[1] + (r(13) - 0.5) * 0.3 * amt];
+    return p;
+  }
+
   // ---------------------------------------------------------------- sketch layer (line boil)
   let DRAW = 0, PATH = 0;
   const hb = (n) => { const s = Math.sin(n * 12.9898 + DRAW * 78.233) * 43758.5453; return s - Math.floor(s); };
@@ -335,5 +351,5 @@
   }
   // sketchCtx: the same boiling ink for props and sets (ropes, planks, machines), so the world and the characters match
   function sketchCtx(c, t, seed = 1) { DRAW = Math.floor(t * g.Stick.boilFps + 1e-6) + seed * 7919; PATH = seed * 100000; return sketch(c); }
-  g.Stick = { draw, pose, mix, act, alive, walk, curve, sketchCtx, EXPR, BASE, boilFps: 24 };   // 24 = a new drawing every frame; 12 = classic 'on twos'
+  g.Stick = { draw, pose, mix, act, alive, walk, vary, curve, sketchCtx, EXPR, BASE, boilFps: 24 };   // 24 = a new drawing every frame; 12 = classic 'on twos'
 })(typeof window !== 'undefined' ? window : globalThis);
