@@ -37,3 +37,5 @@ Lists to watch for new tools:
 - skills/ours/cartoon-audio-short (ours): vertical cartoon short from the user's voiceover, music + SFX at measured levels (used for the cat short).
 
 - opus-sound-layer/scripts/mix.py carries two small studio patches (2026-11-14): cue-sheet keys `music_lufs` (bed level) and `music_off` ([[start,end],...] music out on gags).
+
+| director-skill | https://github.com/wuwangzhang1216/DirectorSKILL | MIT | Film craft reference: shot sizes, camera moves, 180/30-degree rules, vertical 9:16 direction, blocking, editing, continuity bible. Text only (reviewed 2026-11-14: no scripts). Its AI-video prompt adapters are not used. |

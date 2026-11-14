@@ -10,6 +10,7 @@ html,body{margin:0;background:#000;overflow:hidden}
 <script src="scene.glsl.js"></script>
 <script src="../../../kit/char2d/stick.js"></script>
 <script src="../../../kit/timeline/words.js"></script>
+<script src="../../../kit/camera/rigs.js"></script>
 <script src="../../../kit/fx/oldfilm.js"></script>
 <script src="flashback.js"></script>
 <script>
@@ -140,56 +141,66 @@ function state(t) {
 
 // ------------------------------------------------------------------ cameras (cuts between shots)
 function camera(t, s) {
-  const C = s.carY;
-  const hero = (dx = 0) => ({ p: [0.75 + dx, C + 1.35, 2.75], q: [0, C + 1.75, -0.7], f: 50, a: 0.012 });
-  const wide = (y) => ({ p: [0.9, y + 1.6, 6.2], q: [0, y + 1.2, -0.9], f: 46, a: 0.004 });
-  const mv = (a, b, u) => ({ p: L3(a.p, b.p, u), q: L3(a.q, b.q, u), f: lerp(a.f, b.f, u), a: lerp(a.a ?? 0, b.a ?? 0, u) });
+  // v2 cinematic shot list (skills/ours/cinematic-camera): every shot has ONE dominant move with a reason, on the same cuts
+  // as v1. Times are the v1 timeline (toOld), so every cut still lands on its word. Cameras stay on the open (+z) side.
+  const C = s.carY, R = s.roof;
+  const ap = (c, a) => Object.assign(c, { a });
+  const O = (cx, r, h, a0, a1, u, f = 46, a = 0.004, e) => ap(Cam.orbit(cx, r, h, a0, a1, u, f, e), a);           // orbit
+  const Cr = (cx, r, ang, y0, y1, ty0, ty1, u, f = 46, a = 0.004) => ap(Cam.crane(cx, r, ang, y0, y1, ty0, ty1, u, f), a);   // crane
+  const Pu = (c, k, u) => ap(Cam.push(c, k, u), c.a);                                                                // push-in
+  const F2 = (tt) => [0, carY(tt) + 1.4, -0.9];
+  const hero = (u, a0 = 0.32, a1 = 0.12, r0 = 3.6, r1 = 3.2) => O([0, C + 1.75, -0.7], lerp(r0, r1, Cam.ease.smooth(u)), -0.4, a0, a1, u, 50, 0.012);
   const shots = [
-    [0, 1.48, () => mv({ p: [-1.3, 1.6, 2.0], q: [-2.3, 1.45, -1.1], f: 40, a: 0.01 }, { p: [-1.45, 1.6, 1.6], q: [-2.3, 1.5, -1.1], f: 40, a: 0.01 }, ramp(t, 0, 1.48))],
-    [1.48, 3.7, () => mv({ p: [0.6, 1.0, 4.0], q: [0, 8, -0.9], f: 50 }, { p: [0.6, 30, 6.5], q: [0, 37.4, -1], f: 46 }, ramp(t, 1.48, 3.4))],
-    [3.7, 5.24, () => ({ p: [-1.55, 1.5, 1.35], q: [-2.3, 1.3, -1.1], f: 40, a: 0.01 })],
-    [5.24, 7.66, () => mv({ p: [1.0, 4.0, 9.0], q: [0, 3.0, -0.9], f: 46 }, { p: [1.0, 3.6, 8.0], q: [0, 2.8, -0.9], f: 46 }, ramp(t, 5.24, 7.66))],
-    [7.66, 8.74, () => ({ p: [2.0, s.roof + 1.6, 4.6], q: [0.7, s.roof + 0.7, -0.9], f: 44, a: 0.005 })],
-    [8.74, 9.5, () => wide(F(0))],
-    [9.5, 10.36, () => ({ p: [2.2, s.roof + 1.3, 3.0], q: [0.7, s.roof + 0.6, -0.5], f: 40, a: 0.006 })],
-    [10.36, 16.16, () => ({ p: [1.2, C + 1.9, 5.4], q: [0, C + 1.5, -0.9], f: 46, a: 0.004 })],
-    [16.16, 18.45, () => ({ p: [1.2, Math.max(C, 0) + 1.9 + (t - 16.16) * 1.2, 5.4], q: [0, C + 1.4, -0.9], f: 50, a: 0.003 })],
-    [18.45, 19.72, () => ({ p: [1.1, 1.7, 5.0], q: [0, -0.1, -0.9], f: 48, a: 0.004 })],
-    [19.72, 21.84, () => wide(8.0)],
-    [21.84, 23.92, () => mv({ p: [-0.1, 10.9, 2.4], q: [-0.9, 10.3, -0.85], f: 40, a: 0.008 }, { p: [-0.2, 10.7, 1.9], q: [-0.9, 10.3, -0.85], f: 40, a: 0.008 }, ramp(t, 21.84, 23.92))],
-    [23.92, 27.7, () => mv({ p: [0.7, 11.0, 2.9], q: [0, 10.45, -0.85], f: 42, a: 0.008 }, { p: [0.6, 10.95, 2.4], q: [0, 10.45, -0.85], f: 42, a: 0.008 }, ramp(t, 23.92, 27.7))],
-    [27.7, 30.98, () => hero()],
-    [30.98, 38.88, () => mv({ p: [1.2, 10.6, 7.6], q: [0, 9.6, -0.9], f: 40, a: 0.004 }, { p: [1.0, 10.4, 6.2], q: [0, 9.6, -0.9], f: 40, a: 0.004 }, ramp(t, 30.98, 38.88))],
-    [38.88, 44.96, () => hero(0.05 * Math.sin(t * 3))],
-    [44.96, 47.34, () => ({ p: [1.1, C + 2.0, 5.6], q: [0, C + 1.4, -0.9], f: 46, a: 0.004 })],
-    [47.34, 51.37, () => ({ p: [3.4, s.roof + 1.8, 5.2], q: [1.2, s.roof + 0.7, -0.9], f: 46, a: 0.004 })],
-    [51.37, 60.67, () => ({ p: [1.9, 20.2, 8.6], q: [0.7, 19.8, -0.9], f: 52, a: 0.0 })],
-    [60.67, 61.4, () => ({ p: [3.0, s.roof + 1.5, 4.6], q: [1.2, s.roof + 0.7, -0.9], f: 44, a: 0.004 })],
-    [61.4, 62.8, () => hero()],
-    [62.8, 64.78, () => ({ p: [1.6, Math.min(C, 24) + 1.6, 7.0], q: [0, Math.min(C, 24) + 1.6, -0.9], f: 50, a: 0.0 })],
-    [64.78, 68.93, () => hero()],
-    [68.93, 75.3, () => mv({ p: [0.3, s.roof + 1.4, 3.4], q: [-0.4, s.roof + 0.7, -0.85], f: 42, a: 0.006 }, { p: [0.0, s.roof + 1.2, 2.6], q: [-0.5, s.roof + 0.6, -0.85], f: 42, a: 0.006 }, ramp(t, 68.93, 75.3))],
-    [75.3, 76.6, () => hero()],
-    [76.6, 79.24, () => ({ p: [0.8, 0.3, 3.4], q: [0, -0.85, -0.85], f: 44, a: 0.006 })],
-    [79.24, 84.9, () => ({ p: [0.5, F(6) + 1.0 - 1.4 * ramp(t, 84.3, 84.9), 5.2], q: [-0.9, F(6) + 0.9 - 1.2 * ramp(t, 84.3, 84.9), -0.9], f: 50, a: 0.004 })],
-    [84.9, 88.5, () => ({ p: [0.6, F(6) + 1.4, 6.0], q: [-0.4, F(6) + 0.9, -0.9], f: 46, a: 0.0 })],
-    [88.5, 98.98, () => ({ p: [0.45, F(6) + 1.55, 3.9], q: [-0.65, F(6) + 1.05, -0.8], f: 50, a: 0.005 })],
-    [98.98, 103.0, () => mv({ p: [14, 6, 42], q: [0, 30, -1], f: 58 }, { p: [22, 30, 62], q: [0, 230, -1], f: 62 }, ramp(t, 99.0, 102.5))],
-    [103.0, 108.8, () => mv({ p: [2.6, 186, 9], q: [0, 188, -0.85], f: 50 }, { p: [2.6, 192, 9], q: [0, 200, -0.85], f: 50 }, ramp(t, 103, 108.8))],
-    [108.8, 112.54, () => ({ p: [1.6, 182.2, 6.4], q: [0, C + 1.4, -0.9], f: 48, a: 0.002 })],
-    [112.54, 116.66, () => ({ p: [0.9, 183.4, 2.8], q: [0, 183.0, -0.85], f: 44, a: 0.006 })],
-    [116.66, 122.98, () => ({ p: [0.9, F(99) + 1.6, 3.4], q: [-0.25, F(99) + 1.3, -0.8], f: 48, a: 0.005 })],
-    [122.98, 124.4, () => mv({ p: [0.55, -0.95, 0.25], q: [0.3, -1.23, -0.45], f: 36, a: 0.004 }, { p: [0.45, -1.05, 0.0], q: [0.3, -1.23, -0.45], f: 36, a: 0.004 }, ramp(t, 122.98, 124.4))],
-    [124.4, 125.58, () => ({ p: [-1.0, F(99) + 1.6, 1.2], q: [0, F(99) + 1.55, -0.55], f: 40, a: 0.008 })],
-    [125.58, 128.26, () => mv({ p: [16, 320, 46], q: [0, 352, -1], f: 52 }, { p: [19, 312, 54], q: [0, 356, -1], f: 52 }, ramp(t, 125.58, 128.26))],
-    [128.26, 999, () => ({ p: [-1.8, F(99) + 1.4, 4.2], q: [-2.6, F(99) + 1.1, -1.0], f: 46, a: 0.004 })],
+    [0, 1.48, (u) => O([-2.3, 1.45, -1.1], lerp(3.4, 2.9, u), 0.15, 0.62, 0.22, u, 40, 0.01)],                    // hook: arc in on Steve
+    [1.48, 3.7, (u) => Cr([0, 0, -0.9], 5.2, lerp(0.35, -0.2, u), 1.0, 30, 8, 37.4, u, 50)],                         // crane up the ten floors
+    [3.7, 5.24, (u) => O([-2.3, 1.3, -1.1], lerp(3.0, 2.55, u), 0.2, -0.15, 0.12, u, 40, 0.012)],                   // given up: slow push-arc
+    [5.24, 7.66, (u) => O([0, 3.0, -0.9], 10.2, 1.0, 0.45, -0.25, u, 46)],                                           // the build: big orbit
+    [7.66, 8.74, (u) => O([0.7, R + 0.7, -0.9], 4.1, 0.9, 0.5, 1.0, u, 44, 0.005)],                                  // around the roof wheel
+    [8.74, 9.5, (u) => Cr([0, 0, -0.9], 7.1, 0.12, 1.2, 2.2, 0.9, 1.5, u, 46)],                                      // wide: rise a little
+    [9.5, 10.36, (u) => O([0.7, R + 0.6, -0.5], 3.6, 0.7, 0.85, 0.45, u, 40, 0.006)],                                // "You crank."
+    [10.36, 16.16, (u) => O([0, C + 1.5, -0.9], lerp(6.6, 5.8, u), 0.4, 0.45, -0.4, u, 46)],                          // the hero orbit: you invented the elevator
+    [16.16, 18.45, (u, tt) => Cam.handheld(ap(Cam.follow(F2, [1.2, 0.7, 5.2], tt, 0.28, 52), 0.003), tt, 0.9, 1)],   // falls: camera lags behind
+    [18.45, 19.72, (u) => Pu({ p: [1.1, 1.9, 5.2], q: [0, -0.1, -0.9], f: 48, a: 0.004 }, 0.2, u)],                  // basement: push on the wreck
+    [19.72, 21.84, (u) => Cr([0, 8, -0.9], 6.3, 0.15, 12.5, 9.6, 10.2, 9.2, u, 46)],                                 // "Fix number one": crane down
+    [21.84, 23.92, (u) => O([-0.9, 10.3, -0.85], 2.6, 0.6, 0.8, 0.35, u, 40, 0.008)],                                // claws: orbit the insert
+    [23.92, 27.7, (u) => O([0, 10.45, -0.85], lerp(3.4, 2.6, u), 0.5, -0.35, 0.18, u, 42, 0.008)],                   // claws tucked: opposite arc
+    [27.7, 30.98, (u, tt) => Cam.handheld(Pu(hero(0, 0.2, 0.2), 0.22, u), tt, 0.35, 2)],                             // "spring out and bite": push
+    [30.98, 38.88, (u) => O([0, 9.6, -0.9], lerp(7.8, 6.3, u), 1.0, 0.2, -0.1, u, 40)],                              // (flashback covers this)
+    [38.88, 44.96, (u, tt) => Cam.handheld(hero(u, 0.38, 0.05), tt, 0.4, 3)],                                       // shaking: slow arc
+    [44.96, 47.34, (u) => O([0, C + 1.4, -0.9], 6.7, 0.6, -0.35, 0.1, u, 46)],                                       // "Steve is heavy"
+    [47.34, 51.37, (u, tt) => Cam.handheld(O([1.2, R + 0.7, -0.9], 4.9, 1.1, 0.45, 0.9, u, 46), tt, 0.3, 4)],          // cranking till you pass out
+    [51.37, 54.5, (u) => O([0.7, 19.8, -0.9], 9.0, 0.4, 0.3, -0.15, u, 52)],                                         // motor
+    [54.5, 57.6, (u) => Cr([0.7, 0, -0.9], 8.4, -0.45, 24.5, 18.5, 22.5, 19.2, u, 50)],                                // counterweight: crane down along it
+    [57.6, 60.67, (u) => O([0.7, 19.8, -0.9], lerp(7.4, 5.6, u), 0.5, -0.1, 0.25, u, 50)],                           // "only lifts the difference": push-arc
+    [60.67, 61.4, (u) => O([1.2, R + 0.7, -0.9], 4.8, 0.8, 0.75, 0.55, u, 44, 0.005)],                               // tiny motor
+    [61.4, 62.8, (u) => Pu(hero(0, 0.15, 0.15), 0.15, u)],                                                           // "But now it's fast."
+    [62.8, 64.78, (u, tt) => Cam.handheld(ap(Cam.follow((x) => [0, Math.min(carY(x), 24) + 1.6, -0.9], [1.6, 0, 7.0], tt, 0.35, 52), 0.0), tt, 0.7, 5)],  // rockets: camera can't keep up
+    [64.78, 68.93, (u) => Pu(hero(0, 0.22, 0.22), 0.2, ramp(t, 66.9, 68.2))],                                        // hair gag: steady, then push on "later"
+    [68.93, 75.3, (u) => O([-0.45, R + 0.65, -0.85], lerp(3.5, 2.6, u), 0.65, 0.25, -0.55, u, 42, 0.006)],           // governor: long orbit
+    [75.3, 76.6, (u) => Pu(hero(0, -0.1, -0.1), 0.15, u)],
+    [76.6, 79.24, (u) => Cr([0, 0, -0.85], 3.4, 0.25, 1.4, 0.3, -0.2, -0.85, u, 44, 0.006)],                         // pit springs: boom down
+    [79.24, 84.9, (u) => { const d = 1.4 * ramp(t, 84.3, 84.9), c = O([-0.9, F(6) + 0.9, -0.9], 5.3, 0.1, 0.05, 0.38, ramp(t, 79.24, 84.3), 50); c.p[1] -= d; c.q[1] -= d * 0.85; return c; }],  // steps out... falls
+    [84.9, 88.5, (u) => O([-0.4, F(6) + 0.9, -0.9], lerp(5.2, 6.6, u), 0.5, -0.15, -0.32, u, 46)],                   // aftermath: pull back
+    [88.5, 92.0, (u) => O([-0.65, F(6) + 1.05, -0.8], lerp(4.2, 3.6, u), 0.5, 0.35, 0.02, u, 50, 0.005)],            // interlocks
+    [92.0, 95.5, (u) => O([-0.65, F(6) + 1.05, -0.8], 3.4, 0.4, -0.55, -0.25, u, 46, 0.006)],                        // the baguette: other side
+    [95.5, 98.98, (u) => Pu(O([-0.65, F(6) + 1.05, -0.8], 4.2, 0.6, 0.6, 0.48, u, 50, 0.005), 0.22, u)],              // light curtain: push
+    [98.98, 103.0, (u) => O([0, lerp(30, 200, Cam.ease.inOut(u)), -1], lerp(46, 64, u), lerp(-24, -170, Cam.ease.inOut(u)), 0.3, 0.62, u, lerp(58, 62, u))],  // +90 floors: orbit-crane up the tower
+    [103.0, 108.8, (u) => O([0, lerp(188, 200, u), -0.85], 9.4, lerp(-2, -8, u), -0.28, 0.2, u, 50)],                // steel rope: rise along it
+    [108.8, 112.54, (u, tt) => Cam.handheld(ap(Cam.follow(F2, [1.6, 0.8, 7.2], tt, 0.22, 48), 0.002), tt, 0.6, 6)],   // bungee
+    [112.54, 116.66, (u) => O([0, 183.0, -0.85], lerp(3.2, 2.7, u), 0.4, 0.35, -0.4, u, 44, 0.006)],                // carbon rope: orbit
+    [116.66, 119.7, (u) => O([-0.25, F(99) + 1.3, -0.8], 3.6, 0.3, 0.4, 0.1, u, 48, 0.006)],                         // floor one hundred
+    [119.7, 122.98, (u) => O([-0.25, F(99) + 1.3, -0.8], lerp(3.3, 2.5, u), 0.25, -0.22, -0.08, u, 48, 0.008)],       // soft music: push in
+    [122.98, 124.4, (u) => O([0.3, -1.23, -0.45], lerp(0.8, 0.62, u), 0.3, 0.9, 0.45, u, 36, 0.004)],                // keys: orbit the insert
+    [124.4, 125.58, (u) => Pu({ p: [-1.0, F(99) + 1.6, 1.2], q: [0, F(99) + 1.55, -0.55], f: 40, a: 0.008 }, 0.25, u)],  // his face
+    [125.58, 128.26, (u) => O([0, lerp(345, 356, u), -1], lerp(52, 60, u), lerp(-25, -42, u), 0.3, 0.55, u, 52)],    // the tower
+    [128.26, 999, (u) => Cr([-2.6, 0, -1.0], lerp(4.4, 7.0, ramp(t, 128.26, 131.4)), 0.35, F(99) + 1.4, F(99) + 5.5, F(99) + 1.1, F(99) + 1.5, ramp(t, 128.26, 131.4), 46)],  // crane away to the title
   ];
-  let c = shots[shots.length - 1][2]();
-  for (const [a, b, fn] of shots) if (t >= a && t < b) { c = fn(); break; }
-  // camera shake on impacts
-  const hit = (a, k = 1) => (t >= a && t < a + 0.6 ? k * Math.exp(-(t - a) * 7) : 0);
-  const sh = hit(18.45, 0.06) + hit(28.62, 0.03) + hit(37.9, 0.02) + hit(48.0, 0.02) + hit(64.8, 0.04) + hit(75.32, 0.03) + hit(84.75, 0.05) + hit(91.36, 0.02) + (t > 48.0 && t < 50.9 ? 0.006 : 0);
-  if (sh > 0) { c.p = c.p.map((v, i) => v + sh * Math.sin(t * (53 + i * 17) + i)); c.q = c.q.map((v, i) => v + sh * 0.5 * Math.sin(t * (47 + i * 13))); }
+  let c = null;
+  for (const [a, b, fn] of shots) if (t >= a && t < b) { c = fn((t - a) / (b - a), t); break; }
+  if (!c) c = shots[shots.length - 1][2](1, t);
+  c = Cam.handheld(c, t, 0.12, 9);                                         // always-on breath (never locked off)
+  for (const [t0, k] of [[18.45, 0.06], [28.62, 0.03], [37.9, 0.02], [48.0, 0.02], [64.8, 0.04], [75.32, 0.03], [84.75, 0.05], [91.36, 0.02]]) c = Cam.kick(c, t, t0, k * 1.6);
+  if (c.a === undefined) c.a = 0.004;
   return c;
 }
 
@@ -275,7 +286,12 @@ let LAY = null, TINT = null, TINTF = -99;
 function drawSteve(g, t, s, c, k, src) {
   const pr = project(c, s.steve); if (pr.z < 0.3) return null;
   const W = g.canvas.width, H = g.canvas.height;
-  const p = Stick.alive(acting(t, s), t, 2.1);
+  let p = Stick.alive(acting(t, s), t, 2.1);
+  // nobody slides: moving across the floor = walking (cinematic-camera 4). Steps of 0.35 m; face turns to the screen direction.
+  const v = s.vel || [0, 0, 0], spd = Math.hypot(v[0], v[2]) * (s.carVis > 0.5 && Math.abs(v[1]) > 0.3 ? 0 : 1);
+  if (spd > 0.08) { const ww = [c.q[0] - c.p[0], c.q[2] - c.p[2]], wl = Math.hypot(...ww) || 1, right = [-ww[1] / wl, ww[0] / wl];
+    const sx = (v[0] * right[0] + v[2] * right[1]) / spd, dir = Math.abs(sx) > 0.35 ? Math.sign(sx) : 0;
+    p = Stick.walk(p, t * spd / 0.35, dir, Math.min(1, spd / 0.4), 1); }
   const X = pr.x * k, Y = pr.y * k, hpx = 1.78 * pr.ppm * k;
   // work only in a box around him (v2 animatic: full-frame layers + a readback every frame cost ~1 s/frame)
   const bx = Math.floor(X - hpx * 1.0), by = Math.floor(Y - hpx * 1.45), bw = Math.ceil(hpx * 2.0), bh = Math.ceil(hpx * 1.65);
@@ -469,6 +485,7 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
     await blocks(540, 128);
     const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, W, H);
     if (DRAWN && s.steveVis > 0.5 && s.steve) {
+      const sp = state(toOld(tn - 1 / FPS)); s.vel = sp.steve ? s.steve.map((v, i) => (v - sp.steve[i]) * FPS) : [0, 0, 0];   // for the walk cycle
       const st = drawSteve(g, tn, s, c, W / RW, out);
       if (st) {   // 2nd post pass: only the scene IN FRONT of Steve (car posts, rails), drawn back over him
         gl.uniform1f(U1(P2, 'uMask'), 1); gl.uniform1f(U1(P2, 'uCharZ'), st.dist);

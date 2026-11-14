@@ -18,7 +18,7 @@
     // costume (strings switch at the middle of a blend): hat '' | 'top' | 'bowler' | 'cap' | 'bonnet'; coat = frock coat colour;
     // beard 0..1 (chin curtain); bowtie 0/1; prop '' | 'axe' held in the right hand at propAng (radians)
     skin: '#f6efe2', pants: '#2c3140', hairCol: '#2a2630', hat: '', hatCol: '#1d1a1c', hatTip: 0, coat: '', beard: 0, bowtie: 0,
-    stubble: 1, tieOn: 1, prop: '', propAng: 0, hairOff: [0, 0], hairRot: 0 };   // hairOff/hairRot: the hair block can leave the head (gags)
+    stubble: 1, tieOn: 1, prop: '', propAng: 0, hairOff: [0, 0], hairRot: 0, turn: 0 };   // turn -1..1: face looks left/right (3/4 view; features slide, far ear hides)   // hairOff/hairRot: the hair block can leave the head (gags)
   // brow = [raise, angle] per eye (angle > 0 = inner end down = angry); hands/feet are offsets from the ground point, y up
   const EXPR = {
     deadpan: { lid: [0.5, 0.5], brow: [[-4, 0], [-4, 0]], mouth: 'flat' },
@@ -89,6 +89,22 @@
     p.handR[0] += 5 * Math.sin(T * 0.47 * t + seed * 4); p.handR[1] += 4 * Math.sin(T * 0.31 * t + seed * 5) + 2.5 * br;
     p.tie += 0.05 * Math.sin(T * 0.6 * t + seed); p.hair += 0.08 * (Math.sin(T * 0.5 * t) * 0.5 + 0.5);
     p.brow = p.brow.map(([r, an], i) => [r + 1.5 * Math.sin(T * 0.2 * t + i + seed), an]);
+    return p;
+  }
+
+  // walk: ph = steps so far (1 = one step; 12 frames per step = normal walk), dir = -1 left / +1 right / 0 toward camera,
+  // k = amount 0..1 (blend in/out at start and stop). Contact -> down -> passing -> up, arms opposite, head lag, face turns.
+  function walk(p0, ph, dir = 1, k = 1, stride = 1) {
+    if (k <= 0) return p0;
+    const p = JSON.parse(JSON.stringify(p0)), a = ph * Math.PI, s = Math.sin(a), c = Math.cos(a);
+    const sideL = Math.max(0, s), sideR = Math.max(0, -s);                      // which foot is in the air
+    p.footL = [p.footL[0] + k * stride * (dir * 46 * c), p.footL[1] + k * 30 * sideL];
+    p.footR = [p.footR[0] - k * stride * (dir * 46 * c), p.footR[1] + k * 30 * sideR];
+    if (!dir) { p.footL[1] += k * 6 * sideL; p.footR[1] += k * 6 * sideR; }
+    p.hip[1] += k * (-9 * Math.abs(c) + 4); p.hip[0] += k * (5 * s + dir * 6);    // down on contact, up on passing
+    p.handL = [p.handL[0] - k * dir * 34 * c, p.handL[1] + k * 8 * Math.abs(c)]; p.handR = [p.handR[0] + k * dir * 34 * c, p.handR[1] + k * 8 * Math.abs(c)];
+    p.lean -= k * dir * 0.06; p.bob += k * 3 * Math.cos(2 * a + 0.6); p.tilt += k * 0.03 * s;
+    p.tie += k * (0.12 * s - dir * 0.15); p.turn = (p.turn || 0) * (1 - k) + k * dir * 0.8; p.squash += k * 0.05 * Math.max(0, -Math.cos(2 * a));
     return p;
   }
 
@@ -231,6 +247,7 @@
     if (!p.coat) { c.fillStyle = INK; c.fillRect(-90, 6, 180, 14); c.fillStyle = '#d9b44a'; c.fillRect(-10, 5, 20, 16); }
     c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 3; c.beginPath(); c.moveTo(-W0 + 14, 40); c.quadraticCurveTo(-20, 60, -6, 100); c.stroke();   // fold
     c.restore(); torso(); c.strokeStyle = INK; c.lineWidth = L; c.stroke();
+    c.translate(p.turn * 18, 0);   // tie/collar follow the turn
     if (p.bowtie) { c.save(); c.translate(0, bodyH - 12); c.rotate(p.tie * 0.4); c.beginPath(); c.moveTo(0, 0); c.lineTo(-24, 12); c.lineTo(-24, -12); c.closePath(); c.moveTo(0, 0); c.lineTo(24, 12); c.lineTo(24, -12); c.closePath();
       c.fillStyle = p.tieCol; c.fill(); c.lineWidth = 5; c.stroke(); c.restore(); }
     else if (p.tieOn) { c.save(); c.translate(0, bodyH - 10); c.rotate(p.tie * 1.25);
@@ -242,7 +259,7 @@
     c.lineWidth = 14; c.strokeStyle = SKIN; c.beginPath(); c.moveTo(topX, topY - 4); c.lineTo(headC[0], headC[1] - 70); c.stroke(); c.strokeStyle = INK;
     c.save(); c.translate(headC[0], headC[1]); c.rotate(-p.tilt);
     const hw = 164, hh = 172;
-    for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(sx * (hw / 2 + 4), -6, 15, 22, 0, 0, 7); c.fillStyle = SKIN; c.fill(); c.lineWidth = 7; c.stroke(); }
+    for (const sx of [-1, 1]) { if (sx * p.turn > 0.35) continue; c.beginPath(); c.ellipse(sx * (hw / 2 + 4) - p.turn * 14, -6, 15, 22, 0, 0, 7); c.fillStyle = SKIN; c.fill(); c.lineWidth = 7; c.stroke(); }
     c.beginPath(); c.roundRect(-hw / 2, -hh / 2, hw, hh, [46, 46, 58, 58]); c.fillStyle = SKIN; c.fill(); c.lineWidth = L + 1; c.stroke();
     c.save(); c.beginPath(); c.roundRect(-hw / 2, -hh / 2, hw, hh, [46, 46, 58, 58]); c.clip();
     c.fillStyle = SHADE; c.globalAlpha = 0.55; c.beginPath(); c.ellipse(hw * 0.62, -10, hw * 0.4, hh * 0.75, 0, 0, 7); c.fill(); c.globalAlpha = 1;
@@ -250,7 +267,7 @@
     if (p.stubble && !p.beard) for (let i = 0; i < 26; i++) { const a = i * 2.399, r = 8 + (i * 37 % 30); c.beginPath(); c.arc(Math.cos(a) * r * 1.9, -hh / 2 + 22 + Math.sin(a) * 9 + (i % 3) * 3, 1.7, 0, 7); c.fill(); }
     if (p.blush) { c.fillStyle = `rgba(230,110,90,${0.35 * p.blush})`; for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(sx * 52, -22, 18, 10, 0, 0, 7); c.fill(); } }
     c.restore();
-    c.save(); c.translate(p.hairOff[0], p.hairOff[1]); c.rotate(p.hairRot);
+    c.save(); c.translate(p.hairOff[0] - p.turn * 12, p.hairOff[1]); c.rotate(p.hairRot);
     c.beginPath(); c.moveTo(-hw / 2 - 8, hh / 2 - 34); c.quadraticCurveTo(-hw / 2 - 4, hh / 2 + 22, -20, hh / 2 + 20);
     c.quadraticCurveTo(50, hh / 2 + 30 + p.hair * 8, hw / 2 + 16, hh / 2 - 6); c.quadraticCurveTo(hw / 2 + 8, hh / 2 - 30, hw / 2 - 2, hh / 2 - 40);
     c.quadraticCurveTo(10, hh / 2 - 8, -hw / 2 - 8, hh / 2 - 34); c.closePath(); c.fillStyle = HAIR; c.fill(); c.lineWidth = 7; c.stroke();
@@ -271,8 +288,9 @@
       else if (p.hat === 'cap') { c.beginPath(); c.ellipse(0, 22, 88, 46, 0, 0, Math.PI); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.ellipse(52, 4, 62, 14, 0.05, 0, 7); c.fill(); c.stroke(); }
       else if (p.hat === 'bonnet') { c.beginPath(); c.ellipse(0, -10, 112, 110, 0, -0.2, Math.PI + 0.2); c.closePath(); c.fill(); c.stroke(); c.lineWidth = 5; c.beginPath(); c.moveTo(-80, -40); c.quadraticCurveTo(-60, -160, -10, -150); c.stroke(); }
       c.restore(); }
+    c.save(); c.translate(p.turn * 30, 0);   // face features slide toward the turn (restored after the sweat drops)
     for (let i = 0; i < 2; i++) {
-      const sx = i ? 1 : -1, ex = sx * 38, ey = 8, lid = Math.max(p.lid[i], 0), ew = 27, eh = 21 * Math.min(Math.max(lid, 0.06), 1.2);
+      const sx = i ? 1 : -1, ex = sx * 38 * (1 - 0.18 * Math.abs(p.turn)), ey = 8, lid = Math.max(p.lid[i], 0), ew = 27, eh = 21 * Math.min(Math.max(lid, 0.06), 1.2);
       c.save(); c.beginPath(); c.ellipse(ex, ey, ew, eh, 0, 0, 7); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 6; c.stroke();
       if (lid > 0.1) { c.beginPath(); c.ellipse(ex, ey, ew, eh, 0, 0, 7); c.clip(); c.fillStyle = INK; c.beginPath(); c.arc(ex + p.look[0] * 13, ey - p.look[1] * 9, 8.5 * p.pupil, 0, 7); c.fill();
         if (lid < 0.95) { c.fillStyle = SKIN; c.fillRect(ex - ew - 4, ey + eh * (2 * lid - 1) + 2, ew * 2 + 8, 60); } }
@@ -305,6 +323,7 @@
     }
     for (let k = 0; k < Math.round(p.sweat * 3); k++) { const dx = hw / 2 + 20 + k * 20, dy = 44 - k * 30; c.beginPath(); c.moveTo(dx, dy + 16); c.quadraticCurveTo(dx + 13, dy - 8, dx, dy - 12); c.quadraticCurveTo(dx - 13, dy - 8, dx, dy + 16); c.lineWidth = 4; blob('#9fd8f0'); }
     c.restore();
+    c.restore();
     // near arm last, so gestures cross the body
     const [eR, hR] = ik(shR, p.handR, 86, 82, 1, topX);
     tube(c, shR, eR, hR, 30, 22, SLEEVE, L);
@@ -316,5 +335,5 @@
   }
   // sketchCtx: the same boiling ink for props and sets (ropes, planks, machines), so the world and the characters match
   function sketchCtx(c, t, seed = 1) { DRAW = Math.floor(t * g.Stick.boilFps + 1e-6) + seed * 7919; PATH = seed * 100000; return sketch(c); }
-  g.Stick = { draw, pose, mix, act, alive, curve, sketchCtx, EXPR, BASE, boilFps: 24 };   // 24 = a new drawing every frame; 12 = classic 'on twos'
+  g.Stick = { draw, pose, mix, act, alive, walk, curve, sketchCtx, EXPR, BASE, boilFps: 24 };   // 24 = a new drawing every frame; 12 = classic 'on twos'
 })(typeof window !== 'undefined' ? window : globalThis);

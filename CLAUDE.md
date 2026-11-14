@@ -6,6 +6,10 @@ This repo is our studio for a YouTube channel of 3D engineering explainer videos
 The user's goal: awesome, high-quality 3D videos in mass production. A static picture is the worst failure.
 - MANDATORY: open `skills/ours/always-alive-3d/SKILL.md` before building or rendering any 3D scene, and follow it.
   Rule zero: at every frame the character, the world and the camera are all moving. Animation quality comes first.
+- MANDATORY too: `skills/ours/cinematic-camera/SKILL.md` before planning any shot (user, 2026-11-14: "no cinematics, the camera
+  looks dull, I want it to move a lot, like orbits"). Every shot = size + angle + one dominant move (kit/camera/rigs.js:
+  orbit, crane, dolly, follow, whip, push, handheld, kick) + a reason; characters never slide, they walk (Stick.walk).
+  Film theory reference: skills/vendor/director-skill (MIT).
 - Also open, for the task at hand: `skills/vendor/animation-principles/` (the 12 principles, 3D, timing),
   `skills/vendor/shader-skills/` (SDF, noise, particles, post effects), `skills/vendor/opus-sound-layer/` (sound).
 - Gates before ANY full render (no exceptions, even if the user is in a hurry: say why):
