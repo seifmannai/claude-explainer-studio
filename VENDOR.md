@@ -35,3 +35,5 @@ Lists to watch for new tools:
 - github.com/LeaddeOpenLab/awesome-opus-5-5-video-prompts
 
 - skills/ours/cartoon-audio-short (ours): vertical cartoon short from the user's voiceover, music + SFX at measured levels (used for the cat short).
+
+- opus-sound-layer/scripts/mix.py carries two small studio patches (2026-11-14): cue-sheet keys `music_lufs` (bed level) and `music_off` ([[start,end],...] music out on gags).

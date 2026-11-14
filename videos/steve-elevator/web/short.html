@@ -9,12 +9,22 @@ html,body{margin:0;background:#000;overflow:hidden}
 </style></head><body><canvas id="c"></canvas>
 <script src="scene.glsl.js"></script>
 <script src="../../../kit/char2d/stick.js"></script>
+<script src="../../../kit/timeline/words.js"></script>
+<script src="../../../kit/fx/oldfilm.js"></script>
+<script src="flashback.js"></script>
 <script>
 const Q = new URLSearchParams(location.search);       // e.g. ?t=16.5&ink=1&drawn=1 (the still job renders frame 12)
 const TEST = Q.get('t') ? Array(13).fill(+Q.get('t')) : null;   // e.g. [3.0, 16.5] renders only those moments (shot test)
 const INK = +(Q.get('ink') ?? 1);       // ink outlines on the 3D world (kit style: 3D world + drawn characters)
 const DRAWN = +(Q.get('drawn') ?? 1);   // Steve drawn in 2D (kit/char2d) instead of the 3D Steve
-const FPS = 24, SPP = 8, RW = 1080, RH = 1920;
+const ANIM = +(Q.get('anim') || 0);   // animatic: 540x960 inside, 2 samples (gate 2: the user approves this first)
+const FPS = 24, SPP = ANIM ? 2 : 8, RW = ANIM ? 540 : 1080, RH = ANIM ? 960 : 1920;
+// v2 timing: state() and camera() were written against v1's wrong word times (up to 3.6 s off). audio/timewarp.json maps
+// every real word time (new) to its v1 time (old), so all v1 events land on the right word. New code uses Words().at().
+let WARP = [[0, 0], [1e4, 1e4]];
+const interp = (x, A, B) => { let i = 1; while (i < WARP.length - 1 && WARP[i][A] < x) i++; const a = WARP[i - 1], b = WARP[i]; return a[B] + (b[B] - a[B]) * (x - a[A]) / ((b[A] - a[A]) || 1); };
+const toOld = (tn) => interp(tn, 0, 1), toNew = (to) => interp(to, 1, 0);
+let FB = null, WD = null, PRES = null;
 
 // ------------------------------------------------------------------ timeline helpers
 const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -206,17 +216,18 @@ function chunks() {   // 1-3 word caption chunks, broken at punctuation
 }
 let CH = [];
 const KEYW = /^(rope|wheel|box|snap|brake|teeth|claws|bite|otis|counterweight|governor|springs|doors|interlocks|beams|ninety|steel|carbon|ding|keys|stairs|fast|heavy|motor)/i;
-function overlay(g, t, W, H) {
+function overlay(g, t, W, H, tn = t) {   // t = v1 time (cards, stamps), tn = real time (captions)
+  const inFB = FB && tn >= FB.t0 - 0.2 && tn < FB.t1;
   const S = W / 1080;
   const txt = (s, x, y, size, font, fill, stroke, lw, rot = 0, alpha = 1) => { g.save(); g.globalAlpha = alpha; g.translate(x * S, y * S); g.rotate(rot); g.font = `${size * S}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.lineJoin = 'round'; g.strokeStyle = stroke; g.lineWidth = lw * S; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 20 * S; g.shadowOffsetY = 7 * S; g.strokeText(s, 0, 0);
     g.shadowColor = 'transparent'; g.fillStyle = fill; g.fillText(s, 0, 0); g.restore(); };
   const pop = (a) => { const u = cl((t - a) / 0.18); return 0.6 + 0.4 * (1 - (1 - u) ** 3) + 0.12 * Math.sin(u * Math.PI); };
-  for (const [a, b, s] of CARDS) if (t >= a && t < b) { const k = pop(a); const fx = FIX.find((f) => f[0] === a);
+  if (!inFB) for (const [a, b, s] of CARDS) if (t >= a && t < b) { const k = pop(a); const fx = FIX.find((f) => f[0] === a);
     if (fx) txt(fx[1], 540, 150, 54 * k, 'IXB', '#ffffff', '#141414', 14);
     txt(s, 540, 225, Math.min(112, 1700 / s.length) * k, 'IB', '#ffd23a', '#141414', 24); }
-  for (const [a, b, s, fill, stroke, rot] of STAMPS) if (t >= a && t < b) txt(s, 540, 430, Math.min(96, 1500 / s.length) * pop(a), 'IB', fill, stroke, 22, rot, cl((b - t) / 0.15));
-  const c = CH.find((c) => t >= c.t0 && t < c.t1);
+  if (!inFB) for (const [a, b, s, fill, stroke, rot] of STAMPS) if (t >= a && t < b) txt(s, 540, 430, Math.min(96, 1500 / s.length) * pop(a), 'IB', fill, stroke, 22, rot, cl((b - t) / 0.15));
+  const c = CH.find((c) => tn >= c.t0 && tn < c.t1);
   if (c) { g.save(); g.font = `${74 * S}px IXB`; g.textBaseline = 'middle'; g.lineJoin = 'round';
     const words = c.text.split(' '); const sp = g.measureText(' ').width; const tw = words.reduce((a, w) => a + g.measureText(w).width, 0) + sp * (words.length - 1);
     let x = W / 2 - tw / 2; const y = 1640 * S;
@@ -224,22 +235,39 @@ function overlay(g, t, W, H) {
       g.strokeStyle = '#111'; g.lineWidth = 17 * S; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 14 * S; g.shadowOffsetY = 5 * S; g.strokeText(w, x, y);
       g.shadowColor = 'transparent'; g.fillStyle = kw ? '#ffd23a' : '#ffffff'; g.fillText(w, x, y); x += g.measureText(w).width + sp; }
     g.restore(); }
-  // speed lines while the car rockets up or falls
-  if ((t > 63.9 && t < 64.8) || (t > 16.5 && t < 18.4)) { g.save(); g.globalAlpha = 0.5; g.strokeStyle = '#fff'; g.lineCap = 'round';
-    for (let i = 0; i < 9; i++) { const x = (90 + i * 113 + (i * 37) % 50) * S, y0 = ((t * 2400 + i * 330) % 1900) * S; g.lineWidth = (3 + (i % 3) * 2) * S; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y0 + 260 * S); g.stroke(); }
-    g.restore(); }
+  // (v1 drawn white speed lines removed: they read as a glitch. Speed now comes from camera shake + hair/tie lag.)
   // end card
   if (t > 129.4) { const a = cl((t - 129.4) / 0.6); txt('HOW IT REALLY WORKS', 540, 960, 80, 'IB', '#ffffff', '#141414', 18, 0, a); }
 }
 
 // ------------------------------------------------------------------ drawn Steve (kit/char2d) placed in the 3D shot
 // Projects his feet with the same camera maths as the shader; height 1.78 m sets the drawing scale.
-// TODO(v2): word-driven acting (at("word")) instead of this state mapping.
 function project(c, P) {
   const nrm = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); }, sub = (a, b) => a.map((x, i) => x - b[i]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   const ww = nrm(sub(c.q, c.p)), uu = nrm([-ww[2], 0, ww[0]]), vv = [uu[1] * ww[2] - uu[2] * ww[1], uu[2] * ww[0] - uu[0] * ww[2], uu[0] * ww[1] - uu[1] * ww[0]];
   const d = sub(P, c.p), z = dot(d, ww), fl = 1 / Math.tan(c.f * Math.PI / 360);
   return { x: (dot(d, uu) * fl / z * RH + RW) / 2, y: RH - (dot(d, vv) * fl / z * RH + RH) / 2, ppm: fl * RH / 2 / z, z };
+}
+// Acting: one expression per script line (ACT[sentence]), switched with a 4-part move 2 frames BEFORE the line starts.
+// Strong events from the v1 state still win (arms up = panic, slump = defeat). Hair gag: hairLag sends the hair block
+// away when the car rockets up and it flies back and lands with a spring "a second later".
+const ACT = ['deadpan', ['deadpan', { look: [0.1, -0.8] }], 'defeat', 'suspicious', ['suspicious', { look: [0.3, -0.7] }], 'idea', 'smug',
+  ['deadpan', { look: [0, 0] }], 'panic', 'defeat', 'suspicious', ['suspicious', { look: [-0.6, 0] }], 'deadpan', 'panic', 'deadpan', 'deadpan', 'deadpan',
+  ['relief', { sweat: 1 }], 'angry', 'defeat', 'idea', 'panic', 'suspicious', 'deadpan', 'smug', 'deadpan', 'idea', 'panic', 'deadpan',
+  'suspicious', 'idea', 'relief', 'suspicious', 'deadpan', 'panic', 'angry', 'smug', 'angry', 'relief', 'suspicious', ['angry', { mouth: 'flat' }],
+  'deadpan', 'suspicious', 'panic', 'idea', 'smug', 'relief', ['smug', { look: [0, 0.2] }], ['relief', { lid: [0.2, 0.2] }], 'suspicious', 'defeat', 'smug', 'defeat'];
+const actPose = (k) => { const a = ACT[Math.max(0, Math.min(ACT.length - 1, k))]; return Array.isArray(a) ? Stick.pose(a[0], a[1]) : Stick.pose(a); };
+let SENT = null;
+function acting(tn, s) {
+  if (!SENT) { SENT = []; for (const w of WORDS) if (SENT[w.s] === undefined) SENT[w.s] = w.t; }
+  let k = 0; while (k + 1 < SENT.length && SENT[k + 1] - 2 / FPS <= tn) k++;
+  let p = Stick.act(actPose(k - 1), actPose(k), tn - (SENT[k] - 2 / FPS));
+  if (s.arms > 0.5 || s.crouch > 0.5) p = Stick.mix(p, Stick.pose('panic'), Math.min(1, Math.max(s.arms, s.crouch)));
+  else if (s.slump > 0.5) p = Stick.mix(p, Stick.pose('defeat'), s.slump);
+  p.look = [p.look[0] + Math.sin(s.yaw) * 0.3, p.look[1]];
+  const lag = Math.min(1, Math.max(0, -s.hairLag / 0.55));
+  if (lag > 0) { const back = Stick.curve(1 - lag); p.hairOff = [40 * (1 - back), -1500 * (1 - back)]; p.hairRot = 0.7 * (1 - back); }
+  return p;
 }
 // Lighting: drawn on its own layer, multiplied by the scene's average colour around him, warm light from the
 // shaft lamp side, a cool shade on the far side; then composited. Occlusion is the 2nd post pass (uMask).
@@ -249,8 +277,7 @@ function drawSteve(g, t, s, c, k, src) {
   const W = g.canvas.width, H = g.canvas.height;
   if (!LAY) LAY = [0, 1, 2].map(() => { const x = document.createElement('canvas'); x.width = W; x.height = H; return x.getContext('2d'); });
   const [L0, L1, T1] = LAY; T1.canvas.width = T1.canvas.height = 1;
-  const name = s.arms > 0.5 || s.crouch > 0.5 ? 'panic' : s.slump > 0.5 ? 'defeat' : s.coffee > 0.5 ? 'deadpan' : 'suspicious';
-  const p = Stick.alive(Stick.pose(name, { look: [Math.sin(s.yaw) * 0.6, 0] }), t, 2.1);
+  const p = Stick.alive(acting(t, s), t, 2.1);
   const X = pr.x * k, Y = pr.y * k, hpx = 1.78 * pr.ppm * k;
   L0.clearRect(0, 0, W, H); Stick.draw(L0, X, Y, hpx / 545, p, t);
   // average scene colour around him
@@ -377,8 +404,10 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
   gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
   const fbPP = pp.map((t) => { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; });
   try { await document.fonts.load('100px IB'); await document.fonts.load('100px IXB'); } catch (e) { console.warn('font', e.message); }
-  try { WORDS = await (await fetch('../audio/words.json')).json(); CH = chunks(); } catch (e) { console.warn('words', e.message); }
-  const DUR = 131.4;
+  try { WORDS = await (await fetch('../audio/words.json')).json(); CH = chunks(); WD = Words(WORDS); } catch (e) { console.warn('words', e.message); }
+  try { WARP = await (await fetch('../audio/timewarp.json')).json(); } catch (e) { console.warn('timewarp', e.message); }
+  if (WD) FB = makeFlashback(WD);
+  const DUR = toNew(131.4);
   window.frames = TEST ? TEST.length : Math.ceil(DUR * FPS);
 
   const gpuDone = async () => { const sy = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0); gl.flush();
@@ -390,8 +419,12 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
   const U1 = (p, n) => gl.getUniformLocation(p, n);
 
   window.renderFrame = async (f) => {
-    const t = TEST ? TEST[f] : f / FPS;
+    const tn = TEST ? TEST[f] : f / FPS, t = toOld(tn);   // tn = real time (words), t = v1 timeline time
+    const inFB = FB && tn >= FB.t0 && tn < FB.t1, fbTrans = inFB && (tn < FB.T.in1 || tn >= FB.T.out0);
+    if (inFB && !fbTrans) {   // 1854 flashback: drawn + old film, no path tracing (~0.3 s/frame)
+      const g = out.getContext('2d'); FB.draw(g, tn, W, H, null); overlay(g, t, W, H, tn); return; }
     const s = state(t), c = camera(t, s);
+    if (FB) s.sepia = 0;      // v1 sepia hold replaced by the animated flashback
     const Pv = new Float32Array(44);
     [s.carY, s.carVis, s.ropeVis, s.ropeSnap, s.wheelVis, s.wheelAng, s.teeth, s.clawVis, s.clawOut, s.spark,
      s.steve[0] + (t > 41.86 && t < 44.96 ? 0.006 * Math.sin(t * 90) : 0), s.steve[1], s.steve[2], s.arms, s.crouch, s.slump, s.hairUp, s.hairLag, s.coffee, s.bag,
@@ -429,14 +462,16 @@ window.addEventListener('load', () => setTimeout(() => (async () => {
     await blocks(540, 128);
     const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(cv, 0, 0, W, H);
     if (DRAWN && s.steveVis > 0.5 && s.steve) {
-      const st = drawSteve(g, t, s, c, W / RW, out);
+      const st = drawSteve(g, tn, s, c, W / RW, out);
       if (st) {   // 2nd post pass: only the scene IN FRONT of Steve (car posts, rails), drawn back over him
         gl.uniform1f(U1(P2, 'uMask'), 1); gl.uniform1f(U1(P2, 'uCharZ'), st.dist);
         gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); await blocks(540, 128);
         gl.uniform1f(U1(P2, 'uMask'), 0); g.drawImage(cv, 0, 0, W, H);
       }
     }
-    if (s.fade < 0.99 || t > 129.4) overlay(g, t, W, H);
+    if (fbTrans) { if (!PRES) { PRES = document.createElement('canvas'); PRES.width = W; PRES.height = H; }
+      PRES.getContext('2d').drawImage(out, 0, 0); FB.draw(g, tn, W, H, PRES); }
+    if (s.fade < 0.99 || t > 129.4) overlay(g, t, W, H, tn);
   };
   window.hdriUsed = () => `ray-marched path tracer, ${SPP} spp + denoiser, ${RW}x${RH}, compile ${window.compileSeconds?.toFixed(1)} s`;
   window.done = true;

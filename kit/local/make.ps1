@@ -8,6 +8,7 @@
 #   steps  comma list, default "voice,words,audio,render,encode"; also: install, wxwords, sfxkit, sfxmix
 #   scale  1..2 (default 2)
 #   page   default web/short.html
+#   query  page options, e.g. "anim=1" (540x960, 2 samples: the animatic)
 # Writes everything to out\<name>\ : STATUS.txt (one line per step, last line DONE or FAILED),
 #   words.json, final.wav, <name>.mp4 (full quality, for upload), preview.mp4 (small, for Claude QA), sheet.jpg.
 param([string]$Root, [string]$JobFile)
@@ -95,10 +96,13 @@ Step 'sfxmix' {
   & $py -m pip install -q numpy scipy soundfile pyloudnorm matplotlib
   New-Item -ItemType Directory -Force "$sx\music" | Out-Null
   if (-not (Test-Path "$sx\music\$($job.slug).wav")) { & $py "$Studio\kit\local\music_gen.py" "$sx\music\$($job.slug).wav" 150 }
+  if (-not (Test-Path "$sx\music\$($job.slug)_soft.wav")) { & $py "$Studio\kit\local\music_gen.py" "$sx\music\$($job.slug)_soft.wav" 150 --soft }
+  if (-not (Test-Path "$sx\synth\rewind.wav")) { & $py "$Studio\kit\local\sfx_synth.py" "$sx\synth" }
   Push-Location $sx; & $py "$sl\mix.py" "$aud\cues.json" --out "$out\mix"; Pop-Location
   if ($LASTEXITCODE -eq 0) { Copy-Item "$out\mix\mix.wav" "$out\final.wav" -Force; ffmpeg -v error -y -i "$out\mix\mix.wav" -b:a 192k "$out\mix_preview.mp3" }
 }
 Step 'render' {
+  $env:PAGE_QUERY = $(if ($job.query -and ("$($job.query)" -match '^[A-Za-z0-9_=&.,\-]+$')) { "$($job.query)" } else { '' })
   $env:RESUME = '1'; $env:SCALE = $scale; $env:PROGRESS = "$Root\out\progress.html"
   Write-Host "   rendering $($job.name) at ${scale}x - double-click '3-VIEW PROGRESS' to watch" -ForegroundColor Cyan
   node "$Studio\kit\local\local_render.mjs" frames $Studio $page "$out\frames" auto
@@ -109,5 +113,12 @@ Step 'encode' {
   ffmpeg -v error -y -framerate $fps -i "$out\frames\f%04d.jpg" @a -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart "$out\$($job.name).mp4"
   if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf scale=540:960 -c:v libx264 -preset veryfast -crf 30 -c:a aac -b:a 96k -movflags +faststart "$out\preview.mp4" }
   if ($LASTEXITCODE -eq 0) { ffmpeg -v error -y -i "$out\$($job.name).mp4" -vf "select='not(mod(n\,125))',scale=270:480,tile=8x2:padding=4" -frames:v 1 "$out\sheet.jpg" }
+}
+Step 'qa' {
+  # gate 3 + 4: frozen-frame check on the frames, and a contact sheet of one frame every 2 s for the shot/continuity review
+  & $py -m pip install -q pillow numpy
+  & $py "$Studio\kit\qa\alive_check.py" "$out\frames" --fps $fps --report "$out\alive.json" *> "$out\alive_check.txt"
+  ffmpeg -v error -y -framerate $fps -i "$out\frames\f%04d.jpg" -vf "select='not(mod(n\,48))',scale=160:284,tile=11x6:padding=3" -frames:v 1 "$out\sheetall.jpg"
+  $global:LASTEXITCODE = 0
 }
 "DONE $(Get-Date -f s)" | Out-File $status -Append -Encoding utf8

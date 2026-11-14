@@ -2,6 +2,8 @@
 No samples, no downloads: everything is synthesised with numpy, so it is ours to use.
 
   python music_gen.py <out.wav> <seconds> [bpm]
+  python music_gen.py <out.wav> <seconds> --soft   soft bed for under narration (video 3 v2 rule: no drums, no bright
+                                                   plucks; slow warm chords, sub bass, a sparse quiet bell line)
 """
 import sys, numpy as np, soundfile as sf
 
@@ -61,5 +63,26 @@ def main(out, seconds, bpm=104):
     fade = int(SR * 1.5); mix[-fade:] *= np.linspace(1, 0, fade)[:, None]
     sf.write(out, mix.astype(np.float32), SR, subtype='PCM_24'); print('music', out, seconds, 's', bpm, 'bpm')
 
+def soft(seconds, out):
+    # 64 bpm, 4 bars per chord loop: Am9 - Fmaj7 - Cmaj7 - G6. Each voice: sine + a little 2nd/3rd harmonic, slow attack
+    t = np.arange(int(SR * seconds)) / SR; y = np.zeros(len(t)); bar = 60 / 64 * 4
+    chords = [[57, 60, 64, 67, 71], [53, 57, 60, 64], [48, 55, 59, 64], [55, 59, 62, 64]]
+    mtof = lambda m: 440 * 2 ** ((m - 69) / 12)
+    for b in range(int(seconds / bar) + 1):
+        ch = chords[b % 4]; t0 = b * bar; i0, i1 = int(t0 * SR), min(len(t), int((t0 + bar * 1.15) * SR))
+        if i0 >= len(t): break
+        u = t[i0:i1] - t0; env = np.minimum(u / 0.9, 1) * np.exp(-np.maximum(u - bar * 0.7, 0) / 0.5)
+        for k, m in enumerate(ch):
+            f = mtof(m) * (1 + 0.002 * np.sin(2 * np.pi * (0.2 + 0.05 * k) * u))
+            y[i0:i1] += (np.sin(2 * np.pi * f * u) + 0.12 * np.sin(4 * np.pi * f * u) + 0.04 * np.sin(6 * np.pi * f * u)) * env * 0.12
+        fb = mtof(ch[0] - 12); y[i0:i1] += np.sin(2 * np.pi * fb * u) * env * 0.22                     # sub bass
+        for q in (1, 3) if b % 2 else (2,):                                                             # sparse quiet bell
+            j0 = int((t0 + q * bar / 4) * SR); j1 = min(len(t), j0 + int(1.6 * SR))
+            if j0 < len(t): v = t[j0:j1] - t[j0]; fm = mtof(ch[(b + q) % len(ch)] + 12)
+            if j0 < len(t): y[j0:j1] += np.sin(2 * np.pi * fm * v) * np.exp(-v / 0.5) * 0.05
+    y = y / (np.abs(y).max() + 1e-9) * 0.5
+    sf.write(out, np.stack([y, np.roll(y, 240)], 1).astype(np.float32), SR); print('soft music ->', out)
+
 if __name__ == '__main__':
+    if '--soft' in sys.argv: soft(float(sys.argv[2]), sys.argv[1]); sys.exit(0)
     main(sys.argv[1], float(sys.argv[2]), float(sys.argv[3]) if len(sys.argv) > 3 else 104)

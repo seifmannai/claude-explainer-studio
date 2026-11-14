@@ -300,7 +300,9 @@ def main():
         fi = int(0.005 * SR); music[s:s + fi] *= np.linspace(0, 1, fi)[:, None]
         fo = int(m.get("fade_out_s", 1.0) * SR)
         if fo: music[N - fo:] *= np.linspace(1, 0, fo)[:, None]
-        music *= undb((-23 if calm else -20) - lufs(music))
+        music *= undb(C.get("music_lufs", -23 if calm else -20) - lufs(music))   # studio patch: cue sheet can set the bed level
+        for a0, a1 in C.get("music_off", []):                                        # studio patch: music out on gags (ramps 0.25 s)
+            ctrl[int(max(0, a0 - 0.25) * 1000): int(a1 * 1000)] = undb(-40)
         for c in cues:
             t = c["time"]
             if c.get("build"):

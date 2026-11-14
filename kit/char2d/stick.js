@@ -18,7 +18,7 @@
     // costume (strings switch at the middle of a blend): hat '' | 'top' | 'bowler' | 'cap' | 'bonnet'; coat = frock coat colour;
     // beard 0..1 (chin curtain); bowtie 0/1; prop '' | 'axe' held in the right hand at propAng (radians)
     skin: '#f6efe2', pants: '#2c3140', hairCol: '#2a2630', hat: '', hatCol: '#1d1a1c', hatTip: 0, coat: '', beard: 0, bowtie: 0,
-    stubble: 1, tieOn: 1, prop: '', propAng: 0 };
+    stubble: 1, tieOn: 1, prop: '', propAng: 0, hairOff: [0, 0], hairRot: 0 };   // hairOff/hairRot: the hair block can leave the head (gags)
   // brow = [raise, angle] per eye (angle > 0 = inner end down = angry); hands/feet are offsets from the ground point, y up
   const EXPR = {
     deadpan: { lid: [0.5, 0.5], brow: [[-4, 0], [-4, 0]], mouth: 'flat' },
@@ -250,11 +250,13 @@
     if (p.stubble && !p.beard) for (let i = 0; i < 26; i++) { const a = i * 2.399, r = 8 + (i * 37 % 30); c.beginPath(); c.arc(Math.cos(a) * r * 1.9, -hh / 2 + 22 + Math.sin(a) * 9 + (i % 3) * 3, 1.7, 0, 7); c.fill(); }
     if (p.blush) { c.fillStyle = `rgba(230,110,90,${0.35 * p.blush})`; for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(sx * 52, -22, 18, 10, 0, 0, 7); c.fill(); } }
     c.restore();
+    c.save(); c.translate(p.hairOff[0], p.hairOff[1]); c.rotate(p.hairRot);
     c.beginPath(); c.moveTo(-hw / 2 - 8, hh / 2 - 34); c.quadraticCurveTo(-hw / 2 - 4, hh / 2 + 22, -20, hh / 2 + 20);
     c.quadraticCurveTo(50, hh / 2 + 30 + p.hair * 8, hw / 2 + 16, hh / 2 - 6); c.quadraticCurveTo(hw / 2 + 8, hh / 2 - 30, hw / 2 - 2, hh / 2 - 40);
     c.quadraticCurveTo(10, hh / 2 - 8, -hw / 2 - 8, hh / 2 - 34); c.closePath(); c.fillStyle = HAIR; c.fill(); c.lineWidth = 7; c.stroke();
     if (!p.hat || p.hair > 0.5) { c.lineWidth = 6; for (let i = 0; i < 4; i++) { const hx = -50 + i * 34; c.beginPath(); c.moveTo(hx, hh / 2 + 16);
       c.quadraticCurveTo(hx + 14 - p.hair * 10, hh / 2 + 34 + p.hair * 26, hx + 30 - p.hair * 26, hh / 2 + 26 + p.hair * 44 + (i % 2) * 6); c.stroke(); } }
+    c.restore();
     if (p.beard > 0.01) {   // chin-curtain beard: ear to ear under the jaw, mouth stays free
       c.beginPath(); c.moveTo(-hw / 2 - 2, 4); c.quadraticCurveTo(-hw / 2 - 10, -hh / 2 - 10 * p.beard, -30, -hh / 2 - 30 * p.beard); c.quadraticCurveTo(0, -hh / 2 - 46 * p.beard, 30, -hh / 2 - 30 * p.beard);
       c.quadraticCurveTo(hw / 2 + 10, -hh / 2 - 10 * p.beard, hw / 2 + 2, 4); c.quadraticCurveTo(hw / 2 - 18, -40, 26, -72); c.quadraticCurveTo(0, -80, -26, -72); c.quadraticCurveTo(-hw / 2 + 18, -40, -hw / 2 - 2, 4); c.closePath();
