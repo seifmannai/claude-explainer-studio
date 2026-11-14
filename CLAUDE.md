@@ -43,12 +43,14 @@ The user's goal: awesome, high-quality 3D videos in mass production. A static pi
 ## Save credits (efficiency rules)
 - PC work = ONE `make` job (kit/local/make.ps1): words -> align -> sound cues -> music/SFX/mix -> render -> encode -> preview + sheet.
   Job: `{"action":"make","slug":"<slug>","name":"<slug>_v1","voice":"in/<file>.wav","scale":"2"}` (optional "steps":"render,encode").
-- The PC has (via the `tools` job): Kokoro (models\kokoro, env py), Chatterbox (env pycb, expressive voice), faster-whisper, Blender, HyperFrames (hyperframes\). Use them: the voice is made on the PC by the `make` job's `voice` step from videos/<slug>/script.txt ("tts":"kokoro" default = am_michael*0.4+am_puck*0.6, or "chatterbox"); Blender for photoreal hero shots; HyperFrames for 2D/cartoon scenes. Cloud only writes code and checks stills.
+- The PC has (via the `tools` job): Kokoro (models\kokoro, env py), Chatterbox (env pycb, expressive voice), faster-whisper, Blender, HyperFrames (hyperframes\). Use them: the voice is made on the PC by the `make` job's `voice` step from videos/<slug>/script.txt ("tts":"kokoro" default = am_michael*0.4+am_puck*0.6, or "chatterbox"); Blender for photoreal hero shots; HyperFrames for 2D/cartoon scenes. Cloud only writes code; the PC renders every still, sheet and preview.
 - Then wait with ONE background timer (render ~0.14 s/frame at 2x + ~2 min encode) and read only `out/<name>/STATUS.txt` and `out/<name>/sheet.jpg`.
   QA from `preview.mp4` (small); never stage the full MP4 (the bridge times out above ~100 MB).
 - Never list the PC folder recursively (one listing was 200k characters). List the exact folder, stage exact files.
 - Runner changes: push to the repo, then drop a `selfupdate` job (no user action needed).
-- Cloud preview only for new scenes; reuse kit/ code and the last video's page as the template.
+- ALL previews and tests run on the PC too, including 2D drawing tests, sheets and short clips (user, 2026-11-14:
+  saves tokens). The cloud only writes code and syntax/shader-compile checks; look at results via small JPG sheets
+  or preview.mp4 staged from the PC. Reuse kit/ code and the last video's page as the template.
 - Write phase results to files in the repo (script, plan, timings) so a new session or a context reset restarts from files, not chat.
 
 ## End of every session: improve the studio
