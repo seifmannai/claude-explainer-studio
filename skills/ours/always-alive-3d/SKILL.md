@@ -102,13 +102,26 @@ An impact has: 1-2 frame stretch before, the hit frame, camera kick, debris/dust
 - Path-traced look: 1080x1920 inside, 8 samples + denoiser, motion blur by spreading samples over the shutter.
 - A gag must read in one second from a phone. If it needs explaining (the hair gag in v1), redesign it.
 
+## 6b. Detailed worlds, no glitches, no inconsistencies (user rule, 2026-11-14)
+
+- Environments are detailed in every shot: no empty walls or floors. Each set has at least 3 layers (foreground props,
+  the action, a background with its own life) plus wear and texture (bricks, planks, bolts, cables, dust, signs).
+- Continuity sheet (videos/<slug>/CONTINUITY.md) written BEFORE building, checked on the animatic contact sheet:
+  * characters: same costume, colours, proportions and scale in every shot (Steve = 1.78 m, teal shirt, red tie);
+  * props keep their state across cuts (a cut rope stays cut, a door left open is still open, coffee spilled stays spilled);
+  * sets: the same floor, lamp, rails and walls in the same places; screen direction kept across a cut (180-degree rule);
+  * lighting and time of day consistent inside one scene; captions always the same style and position.
+- Glitch hunt on every contact sheet: objects through objects, floating feet, popping objects (things appear only with
+  an animation + sound), flicker that is not the old-film effect, halos, black blobs on lights, text encoding errors.
+- A drawn character in a 3D shot is lit by the scene and hidden by nearer geometry (post pass uMask); never pasted on.
+
 ## 7. Gates: nothing renders overnight without these
 
 1. `kit/qa/sync_check.py` passes.
 2. **Animatic**: 540x960, 2 samples, full sound, whole film. The user watches it and approves.
 3. `kit/qa/alive_check.py` on the animatic frames passes: no run of more than 4 near-identical frames,
    and no shot whose character region or background region is frozen.
-4. Contact sheet of every shot reviewed for intersections, halos, bad framing.
+4. Contact sheet of every shot reviewed for intersections, halos, bad framing, and against CONTINUITY.md.
 5. Only then the full render. After it: the same checks again, then deliver.
 
 ## 8. Build so the next video is faster

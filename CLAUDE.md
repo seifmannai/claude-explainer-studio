@@ -12,7 +12,8 @@ The user's goal: awesome, high-quality 3D videos in mass production. A static pi
   1. `python kit/qa/sync_check.py <voice.wav> <words.json>` passes (limit 0.08 s).
   2. A 540x960 / 2-sample animatic of the whole film with full sound, watched and approved by the user.
   3. `python kit/qa/alive_check.py <frames>` passes on the animatic (nothing frozen for more than 4 frames).
-  4. Contact sheet of every shot checked for intersections, halos, glitch-like effects and framing.
+  4. Contact sheet of every shot checked for intersections, halos, glitch-like effects, framing, and continuity
+     (videos/<slug>/CONTINUITY.md: same costumes, scale, prop states, sets, lighting across cuts). Detailed sets, never empty.
 - Every sentence is SHOWN, never just heard (user rule, 2026-11-14). Whenever the voice tells another story, a fact,
   a number, a comparison or a piece of history, the picture shows it happening: a new scene, a character acting it,
   a diagram building itself. Never hold one image or one unchanged scene while the voice moves on.
