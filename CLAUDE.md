@@ -13,6 +13,11 @@ The user's goal: awesome, high-quality 3D videos in mass production. A static pi
   2. A 540x960 / 2-sample animatic of the whole film with full sound, watched and approved by the user.
   3. `python kit/qa/alive_check.py <frames>` passes on the animatic (nothing frozen for more than 4 frames).
   4. Contact sheet of every shot checked for intersections, halos, glitch-like effects and framing.
+- Every sentence is SHOWN, never just heard (user rule, 2026-11-14). Whenever the voice tells another story, a fact,
+  a number, a comparison or a piece of history, the picture shows it happening: a new scene, a character acting it,
+  a diagram building itself. Never hold one image or one unchanged scene while the voice moves on.
+  History/real people: time-travel transition + old-film look + the real person drawn and acting it out + way back
+  (kit/fx/oldfilm.js, see skills/ours/always-alive-3d section 4b). Plan a visual for EVERY script line in PLAN.md.
 - Events are tied to WORDS of the voice, never to hard-coded seconds. Reactions land 0-3 frames before the word.
 - Music sits 18-20 dB under the voice and drops out on gags. The user's own voice is the channel voice
   (recorded by the user, sped up ~1.12x; reference sample on the PC: `in\voice_ref\my_voice_ref.wav`).

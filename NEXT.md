@@ -38,6 +38,12 @@ The user's new direction (2026-11-12 evening), approved in principle:
 - Good still moments: t=16.5 (snap, medium), t=66 (hero close). t=6 is a wide where Steve is cut off: avoid.
 - A still costs ~6 min on the GTX 1060 (185 s shader compile + ~180 s render at 2x).
 
+## Done 2026-11-14 (evening): history flashback
+- User saw steve_1854_flashback_test.mp4 (Otis 1854, drawn + old film + rewind/fast-forward, his voice) and LOVED it:
+  "that's great". New permanent rule in CLAUDE.md + always-alive-3d 4b: every sentence/side story is shown, never a
+  still image. Scene code: videos/steve-elevator/web/flashback.js (not yet wired into short.html: in the flashback window
+  short.html must skip the path tracer and call makeFlashback(Words(WORDS)).draw(g, t, W, H, presentCanvas)).
+
 ## Next steps, in order (ask "is your runner on?" before dropping ANY job)
 1. Drop `{"action":"selfupdate"}` (runner now accepts `"query"` on still jobs).
 2. Drop `{"action":"make","slug":"steve-elevator","name":"tools_1112","steps":"install"}` -> installs

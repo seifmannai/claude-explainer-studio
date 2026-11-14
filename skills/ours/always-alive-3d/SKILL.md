@@ -73,6 +73,20 @@ An impact has: 1-2 frame stretch before, the hit frame, camera kick, debris/dust
   waveform). Fail above 0.08 s. Whisper alignment was 0.35 s early on average in video 3: never trust it unchecked.
 - Captions show from the word's start to the next chunk; 1-3 words; key word highlighted.
 
+## 4b. Every sentence is shown, never just heard (user rule, 2026-11-14)
+
+- Before building, write a shot list with ONE visual per script line (videos/<slug>/PLAN.md). A line without a visual
+  is a bug, exactly like a frozen frame.
+- Side stories, facts, numbers, comparisons, "in real life..." moments: cut to a scene that shows it. Numbers become
+  objects (a counter, a stack, a ruler), comparisons become side-by-side scenes, a cause becomes the effect happening.
+- History or a real person: (1) time-travel transition (`OldFilm.rewind`: spin tunnel, clock backwards, year counter,
+  flash) landing just before the first word; (2) old-film look (`OldFilm.apply`: sepia, flicker, weave, grain,
+  scratches, dust); (3) the real person as a drawn character (kit/char2d costumes: hats, coat, beard, props) acting
+  out what the voice says, word by word, with the crowd/world reacting; (4) fast-forward back to now.
+  Example: videos/steve-elevator/web/flashback.js (Otis 1854). Title card with place + year, name label on the person.
+- The flashback is drawn 2D on purpose: cheap (~0.3 s/frame) and the change of medium itself says "the past".
+- New shot every 2-5 s even inside one story; the camera keeps moving in every shot (section 3).
+
 ## 5. Sound sits under the voice
 
 - Music bed: integrated loudness at least 18-20 dB under the voice, ducked further on speech, OFF on gags
