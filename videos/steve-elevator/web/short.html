@@ -256,7 +256,7 @@ function drawSteve(g, t, s, c, k, src) {
   // average scene colour around him
   T1.drawImage(src, X - hpx * 0.6, Y - hpx * 1.1, hpx * 1.2, hpx * 1.2, 0, 0, 1, 1);
   const [r, gg, b] = T1.getImageData(0, 0, 1, 1).data, lum = Math.max((0.2126 * r + 0.7152 * gg + 0.0722 * b) / 255, 0.05);
-  const tint = [r, gg, b].map((v) => Math.round(255 * Math.min(1.04, Math.max(0.62, (1 - 0.32 + 0.32 * (v / 255) / lum * 0.55) * (0.86 + 0.2 * Math.min(lum / 0.45, 1.3))))));
+  const tint = [r, gg, b].map((v) => Math.round(255 * Math.min(1.0, Math.max(0.84, (1 - 0.18 + 0.18 * (v / 255) / lum * 0.55) * (0.94 + 0.08 * Math.min(lum / 0.45, 1.3))))));
   L1.globalCompositeOperation = 'source-over'; L1.clearRect(0, 0, W, H); L1.drawImage(L0.canvas, 0, 0);
   L1.globalCompositeOperation = 'multiply'; L1.fillStyle = `rgb(${tint})`; L1.fillRect(0, 0, W, H);
   // warm key light from the lamp, cool shade on the other side
@@ -264,9 +264,9 @@ function drawSteve(g, t, s, c, k, src) {
   const lx = lp.z > 0 ? lp.x * k : X - hpx, ly = lp.z > 0 ? lp.y * k : Y - hpx;
   const side = Math.sign(lx - X) || -1;
   L1.globalCompositeOperation = 'source-atop';
-  const gr = L1.createRadialGradient(lx, ly, 0, lx, ly, hpx * 1.6); gr.addColorStop(0, 'rgba(255,196,130,0.30)'); gr.addColorStop(1, 'rgba(255,196,130,0)');
+  const gr = L1.createRadialGradient(lx, ly, 0, lx, ly, hpx * 1.6); gr.addColorStop(0, 'rgba(255,214,160,0.22)'); gr.addColorStop(1, 'rgba(255,196,130,0)');
   L1.fillStyle = gr; L1.fillRect(0, 0, W, H);
-  const sh = L1.createLinearGradient(X + side * hpx * 0.1, 0, X - side * hpx * 0.35, 0); sh.addColorStop(0, 'rgba(20,26,44,0)'); sh.addColorStop(1, 'rgba(20,26,44,0.28)');
+  const sh = L1.createLinearGradient(X + side * hpx * 0.1, 0, X - side * hpx * 0.35, 0); sh.addColorStop(0, 'rgba(20,26,44,0)'); sh.addColorStop(1, 'rgba(20,26,44,0.16)');
   L1.fillStyle = sh; L1.fillRect(0, 0, W, H);
   L1.globalCompositeOperation = 'destination-in'; L1.drawImage(L0.canvas, 0, 0); L1.globalCompositeOperation = 'source-over';
   g.drawImage(L1.canvas, 0, 0);
@@ -336,7 +336,8 @@ void main(){ vec2 uv = gl_FragCoord.xy/uRes;
     float l = max(dot(c, vec3(0.2126,0.7152,0.0722)), 1e-3), b5 = l*5.;                      // soft cel bands
     float lq = (floor(b5) + smoothstep(0.3, 0.7, fract(b5)))/5.; c *= mix(1., lq/l, 0.3*uInk);
     c *= 1. - 0.035*uInk*(vn(gl_FragCoord.xy/2.3 + uBoil*0.37) - 0.5);                        // paper grain
-    float e = ink(gl_FragCoord.xy)*uInk*(1. - smoothstep(1.2, 2.4, lraw));   // no ink on lamps (v1 test: black blob)
+    float lnear = lraw; for (int k = 0; k < 4; k++){ vec2 d = vec2(k==0?1.:k==1?-1.:0., k==2?1.:k==3?-1.:0.)*7./uRes; lnear = max(lnear, dot(tap(uv+d), vec3(0.2126,0.7152,0.0722))); }
+    float e = ink(gl_FragCoord.xy)*uInk*(1. - smoothstep(1.0, 2.0, lnear));   // no ink on or around lamps (black ring in test 2)
     c = mix(c, c*0.08 + vec3(0.045,0.04,0.055), e);  // coloured ink, nearly black
   }
   float lu = dot(c, vec3(0.299,0.587,0.114));
