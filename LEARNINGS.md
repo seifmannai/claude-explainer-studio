@@ -1,6 +1,19 @@
 # Learnings (newest first)
 
 
+
+## 2026-11-14 - history flashbacks are animated, never a still picture
+- User: when the video talks about the real past (Otis, 1854), the picture must not freeze. Rule: every history beat
+  gets (1) a time-travel transition (kit/fx/oldfilm.js `rewind`: zoom-spin tunnel, colour drains, clock spinning
+  backwards, year counter, flash), (2) an old-film look (`OldFilm.apply`: sepia, flicker, gate weave, grain, scratches,
+  dust, burnt vignette), (3) the real person as a drawn character acting it out, and (4) fast-forward back to now.
+- The flashback set is drawn 2D (kit/char2d + `Stick.sketchCtx` boiling ink for props), not path traced: ~0.3 s/frame
+  instead of ~6 s, and the change of medium itself says "this is the past".
+- Character kit gained costumes: hat (top, bowler, cap, bonnet) with hatTip, frock coat, beard, bow tie, prop 'axe'.
+- kit/timeline/words.js: `Words(json).at('word', sentence)` - events on words; throws if a script edit removes the word.
+- Crowd sizing: a foreground crowd at full size covers half a 9:16 frame; keep it at ~0.5 scale, heads only in wides.
+- A test page without `<meta charset="utf-8">` turns "·" into "Â·".
+
 ## 2026-11-12 (night) - runner stills failing silently
 - Stills "finished" in 0 s with no image: Node.js had disappeared from the PC (no Program Files\nodejs, not on PATH) and the runner logged nothing. Fix: the install step now downloads a portable Node to <Root>\node and the runner prefers it; the still branch logs the node path, exit code and any error. Always log the tool path + exit code in runner branches.
 - Page query (?t=..&ink=..) now goes to Node via the PAGE_QUERY env var, never on the command line ('&' is unsafe there).
