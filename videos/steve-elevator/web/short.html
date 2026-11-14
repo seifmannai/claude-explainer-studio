@@ -271,32 +271,38 @@ function acting(tn, s) {
 }
 // Lighting: drawn on its own layer, multiplied by the scene's average colour around him, warm light from the
 // shaft lamp side, a cool shade on the far side; then composited. Occlusion is the 2nd post pass (uMask).
-let LAY = null;
+let LAY = null, TINT = null, TINTF = -99;
 function drawSteve(g, t, s, c, k, src) {
   const pr = project(c, s.steve); if (pr.z < 0.3) return null;
   const W = g.canvas.width, H = g.canvas.height;
-  if (!LAY) LAY = [0, 1, 2].map(() => { const x = document.createElement('canvas'); x.width = W; x.height = H; return x.getContext('2d'); });
-  const [L0, L1, T1] = LAY; T1.canvas.width = T1.canvas.height = 1;
   const p = Stick.alive(acting(t, s), t, 2.1);
   const X = pr.x * k, Y = pr.y * k, hpx = 1.78 * pr.ppm * k;
-  L0.clearRect(0, 0, W, H); Stick.draw(L0, X, Y, hpx / 545, p, t);
-  // average scene colour around him
-  T1.drawImage(src, X - hpx * 0.6, Y - hpx * 1.1, hpx * 1.2, hpx * 1.2, 0, 0, 1, 1);
-  const [r, gg, b] = T1.getImageData(0, 0, 1, 1).data, lum = Math.max((0.2126 * r + 0.7152 * gg + 0.0722 * b) / 255, 0.05);
-  const tint = [r, gg, b].map((v) => Math.round(255 * Math.min(1.0, Math.max(0.84, (1 - 0.18 + 0.18 * (v / 255) / lum * 0.55) * (0.94 + 0.08 * Math.min(lum / 0.45, 1.3))))));
-  L1.globalCompositeOperation = 'source-over'; L1.clearRect(0, 0, W, H); L1.drawImage(L0.canvas, 0, 0);
-  L1.globalCompositeOperation = 'multiply'; L1.fillStyle = `rgb(${tint})`; L1.fillRect(0, 0, W, H);
-  // warm key light from the lamp, cool shade on the other side
+  // work only in a box around him (v2 animatic: full-frame layers + a readback every frame cost ~1 s/frame)
+  const bx = Math.floor(X - hpx * 1.0), by = Math.floor(Y - hpx * 1.45), bw = Math.ceil(hpx * 2.0), bh = Math.ceil(hpx * 1.65);
+  if (bw < 4 || bh < 4 || bx > W || by > H || bx + bw < 0 || by + bh < 0) return { dist: Math.hypot(...[0, 1, 0].map((o, i) => s.steve[i] + o - c.p[i])) };
+  if (!LAY) LAY = [0, 1, 2].map(() => document.createElement('canvas').getContext('2d', { willReadFrequently: false }));
+  const [L0, L1, T1] = LAY;
+  for (const L of [L0, L1]) { if (L.canvas.width < bw) L.canvas.width = bw; if (L.canvas.height < bh) L.canvas.height = bh; L.setTransform(1, 0, 0, 1, 0, 0); L.globalCompositeOperation = 'source-over'; L.clearRect(0, 0, bw, bh); }
+  L0.setTransform(1, 0, 0, 1, -bx, -by); Stick.draw(L0, X, Y, hpx / 545, p, t); L0.setTransform(1, 0, 0, 1, 0, 0);
+  // scene colour around him, sampled every 6 frames (a GPU readback stalls the pipeline)
+  const fr = Math.round(t * FPS);
+  if (!TINT || Math.abs(fr - TINTF) >= 6) { T1.canvas.width = T1.canvas.height = 1;
+    T1.drawImage(src, X - hpx * 0.6, Y - hpx * 1.1, hpx * 1.2, hpx * 1.2, 0, 0, 1, 1);
+    const [r, gg, b] = T1.getImageData(0, 0, 1, 1).data, lum = Math.max((0.2126 * r + 0.7152 * gg + 0.0722 * b) / 255, 0.05);
+    TINT = [r, gg, b].map((v) => Math.round(255 * Math.min(1.0, Math.max(0.84, (1 - 0.18 + 0.18 * (v / 255) / lum * 0.55) * (0.94 + 0.08 * Math.min(lum / 0.45, 1.3)))))); TINTF = fr; }
+  L1.drawImage(L0.canvas, 0, 0);
+  L1.globalCompositeOperation = 'multiply'; L1.fillStyle = `rgb(${TINT})`; L1.fillRect(0, 0, bw, bh);
+  // warm key light from the lamp, cool shade on the other side (coordinates relative to the box)
   const lampK = Math.max(0, Math.floor(c.q[1] / 3.6)), lp = project(c, [-0.94, lampK * 3.6 + 2.9, 0.15]);
-  const lx = lp.z > 0 ? lp.x * k : X - hpx, ly = lp.z > 0 ? lp.y * k : Y - hpx;
-  const side = Math.sign(lx - X) || -1;
+  const lx = (lp.z > 0 ? lp.x * k : X - hpx) - bx, ly = (lp.z > 0 ? lp.y * k : Y - hpx) - by, cx = X - bx;
+  const side = Math.sign(lx - cx) || -1;
   L1.globalCompositeOperation = 'source-atop';
-  const gr = L1.createRadialGradient(lx, ly, 0, lx, ly, hpx * 1.6); gr.addColorStop(0, 'rgba(255,214,160,0.22)'); gr.addColorStop(1, 'rgba(255,196,130,0)');
-  L1.fillStyle = gr; L1.fillRect(0, 0, W, H);
-  const sh = L1.createLinearGradient(X + side * hpx * 0.1, 0, X - side * hpx * 0.35, 0); sh.addColorStop(0, 'rgba(20,26,44,0)'); sh.addColorStop(1, 'rgba(20,26,44,0.16)');
-  L1.fillStyle = sh; L1.fillRect(0, 0, W, H);
+  const gr = L1.createRadialGradient(lx, ly, 0, lx, ly, hpx * 1.6); gr.addColorStop(0, 'rgba(255,214,160,0.22)'); gr.addColorStop(1, 'rgba(255,214,160,0)');
+  L1.fillStyle = gr; L1.fillRect(0, 0, bw, bh);
+  const sh = L1.createLinearGradient(cx + side * hpx * 0.1, 0, cx - side * hpx * 0.35, 0); sh.addColorStop(0, 'rgba(20,26,44,0)'); sh.addColorStop(1, 'rgba(20,26,44,0.16)');
+  L1.fillStyle = sh; L1.fillRect(0, 0, bw, bh);
   L1.globalCompositeOperation = 'destination-in'; L1.drawImage(L0.canvas, 0, 0); L1.globalCompositeOperation = 'source-over';
-  g.drawImage(L1.canvas, 0, 0);
+  g.drawImage(L1.canvas, 0, 0, bw, bh, bx, by, bw, bh);
   return { dist: Math.hypot(...[0, 1, 0].map((o, i) => s.steve[i] + o - c.p[i])) };
 }
 
