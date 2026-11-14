@@ -44,6 +44,14 @@ The user's new direction (2026-11-12 evening), approved in principle:
   still image. Scene code: videos/steve-elevator/web/flashback.js (not yet wired into short.html: in the flashback window
   short.html must skip the path tracer and call makeFlashback(Words(WORDS)).draw(g, t, W, H, presentCanvas)).
 
+## User decisions 2026-11-14 19:20 (before the v2 rebuild)
+- Music: Claude generates a NEW, much softer track (slow, quiet, no drums/plucks), 18-20 dB under the voice, silent on gags.
+- Ink lines on the 3D world: KEEP.
+- Gags that don't read visually may be redesigned (voice/script unchanged); user approves them in the animatic.
+- User rule: detailed sets, no glitches, no inconsistencies -> always-alive-3d 6b + CONTINUITY.md per video.
+- Time estimate given: rebuild (code) first; animatic 540x960 / 2 spp ~30-40 min on the PC; full 1080p / 8 spp
+  ~4-5 h overnight on the GTX 1060 (3D parts ~5-6 s/frame, the 11 s flashback is 2D and fast).
+
 ## Next steps, in order (ask "is your runner on?" before dropping ANY job)
 1. Drop `{"action":"selfupdate"}` (runner now accepts `"query"` on still jobs).
 2. Drop `{"action":"make","slug":"steve-elevator","name":"tools_1112","steps":"install"}` -> installs
