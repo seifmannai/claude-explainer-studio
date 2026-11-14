@@ -2,6 +2,17 @@
 
 
 
+
+## 2026-11-14 (night) - v2 animatic
+- Old v1 word times were up to 3.6 s off; audio/timewarp.json (new word time -> v1 time, 233 pairs) re-timed every v1
+  event and the cue sheet at once. Keep authoring new events with Words().at() so this never happens again.
+- Animatic 540x960 / 2 spp ran 1.86 s/frame, not 0.5: the drawn character used three full-frame 2D layers and a GPU
+  readback every frame. Fix: box-sized layers, readback every 6 frames. Estimate animatics as ~0.6 x frames x 3 s until measured.
+- mix.py set the music only ~4 dB under the voice in pauses (bed -20 LUFS vs voice -16). Studio patch: music_lufs -34,
+  duck 6 dB, music_off ranges on gags and the flashback.
+- A drawn character projected from a 3D position can end up as a giant head at the frame edge in close-ups of props:
+  skip drawing when most of the body is outside the frame.
+
 ## 2026-11-14 - history flashbacks are animated, never a still picture
 - User: when the video talks about the real past (Otis, 1854), the picture must not freeze. Rule: every history beat
   gets (1) a time-travel transition (kit/fx/oldfilm.js `rewind`: zoom-spin tunnel, colour drains, clock spinning

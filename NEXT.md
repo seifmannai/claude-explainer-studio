@@ -52,6 +52,12 @@ The user's new direction (2026-11-12 evening), approved in principle:
 - Time estimate given: rebuild (code) first; animatic 540x960 / 2 spp ~30-40 min on the PC; full 1080p / 8 spp
   ~4-5 h overnight on the GTX 1060 (3D parts ~5-6 s/frame, the 11 s flashback is 2D and fast).
 
+## Animatic v2 done 2026-11-14 22:02 (out\steve_anim_v2\preview.mp4, sent to the user; waiting for his notes)
+- 540x960 / 2 spp: 1.86 s/frame (98 min for 3,163 frames; my 30-40 min estimate was wrong). alive_check PASSES (0 % still).
+- Fixed after review: drawn Steve's giant head peeking in at the bottom of the claw close-ups (skip when >45 % below frame).
+- To look at: big white lamp glow in the "spring-loaded claws" close-up; Steve tiny in some wides.
+- Speed-up for the final pushed (box-sized lighting layers, tint every 6 frames). Final 1080p/8 spp estimate ~5 h.
+
 ## Next steps, in order (ask "is your runner on?" before dropping ANY job)
 1. Drop `{"action":"selfupdate"}` (runner now accepts `"query"` on still jobs).
 2. Drop `{"action":"make","slug":"steve-elevator","name":"tools_1112","steps":"install"}` -> installs

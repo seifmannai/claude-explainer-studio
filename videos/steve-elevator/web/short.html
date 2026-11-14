@@ -279,7 +279,8 @@ function drawSteve(g, t, s, c, k, src) {
   const X = pr.x * k, Y = pr.y * k, hpx = 1.78 * pr.ppm * k;
   // work only in a box around him (v2 animatic: full-frame layers + a readback every frame cost ~1 s/frame)
   const bx = Math.floor(X - hpx * 1.0), by = Math.floor(Y - hpx * 1.45), bw = Math.ceil(hpx * 2.0), bh = Math.ceil(hpx * 1.65);
-  if (bw < 4 || bh < 4 || bx > W || by > H || bx + bw < 0 || by + bh < 0) return { dist: Math.hypot(...[0, 1, 0].map((o, i) => s.steve[i] + o - c.p[i])) };
+  // more than 45 % of him below the frame = only a giant head peeking in at the bottom (animatic v2, claw close-ups): skip
+  if (bw < 4 || bh < 4 || bx > W || by > H || bx + bw < 0 || by + bh < 0 || Y > H + 0.45 * hpx) return { dist: Math.hypot(...[0, 1, 0].map((o, i) => s.steve[i] + o - c.p[i])) };
   if (!LAY) LAY = [0, 1, 2].map(() => document.createElement('canvas').getContext('2d', { willReadFrequently: false }));
   const [L0, L1, T1] = LAY;
   for (const L of [L0, L1]) { if (L.canvas.width < bw) L.canvas.width = bw; if (L.canvas.height < bh) L.canvas.height = bh; L.setTransform(1, 0, 0, 1, 0, 0); L.globalCompositeOperation = 'source-over'; L.clearRect(0, 0, bw, bh); }
