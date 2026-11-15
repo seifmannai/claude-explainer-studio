@@ -4,6 +4,16 @@
 
 
 
+## 2026-11-15 - steve-elevator FINAL (steve_final_v2) delivered
+- Final 1080x1920 / 8 spp at 2x on the GTX 1060: 3163 frames in 300 min (5.0-5.7 s/frame, slower in shaft interiors).
+  Plus encode ~7 min, qa ~2 min. Plan finals as "about 5.5 h" for a 2 min 10 s short.
+- REDO patch of frames 0-33 (hook) took 459 s render + 423 s encode: worth it, much cheaper than a re-render.
+- alive_check on the clean 8 spp final flagged two "frozen world/background" spans the 2 spp animatic did not
+  (99.3-101.7 s and 127.0-128.4 s: exterior tower wides against the sky). Path-tracer noise was hiding the stillness
+  in the animatic. Rule: exterior/sky wides need visible world motion too (clouds, birds, window lights, slow orbit),
+  and alive_check on the animatic should ignore per-pixel noise (compare blurred frames).
+- Full MP4 ~300 MB stays on the PC (out\<name>\<name>.mp4); deliver preview.mp4 (15 MB) through the bridge.
+
 ## 2026-11-15 - v3 animatic (cinematic camera, walk, pose variety)
 - 1.6-1.7 s/frame at 540x960 / 2 spp (box-sized lighting helped a little). alive_check: 0.3 % still (only the fade-out), 177 cuts.
 - An orbit that starts at a wider angle than the old fixed shot can begin BEHIND a wall: the hook shot hid Steve.

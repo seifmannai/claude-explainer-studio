@@ -1,5 +1,10 @@
 # Where we left off (read this first in a new session)
 
+## 2026-11-15 18:15: steve-elevator FINAL DONE
+- Final: `out\steve_final_v2\steve_final_v2.mp4` on the PC (1080x1920, 131 s, hook patched). Preview sent to the user;
+  waiting for his verdict / upload. Known small issues: lamp glow in the claws close-up, Steve small in some wides,
+  exterior tower wides have a still background (see LEARNINGS 2026-11-15).
+
 Last update: 2026-11-12, 21:30 Tunis time. New here? Read START-HERE.md first, then CLAUDE.md (the "Quality bar" section is mandatory).
 
 ## Right now: video 3 = "Steve & the elevator" (videos/steve-elevator), being rebuilt in a NEW STYLE
