@@ -64,7 +64,9 @@ if (mode === 'still') {
   const [a, z] = arg === 'auto' ? [0, (await p.evaluate(() => window.frames)) - 1] : arg.split('-').map(Number); const t1 = Date.now(); let n = 0, last = '';
   for (let f = a; f <= z; f++) {
     const fn = path.join(out, `f${String(f).padStart(4, '0')}.jpg`);
-    if (!(process.env.RESUME && fs.existsSync(fn))) { await p.evaluate((x) => window.renderFrame(x), f); await grab(fn); n++; last = fn; }
+    const redo = /^(\d+)-(\d+)$/.exec(process.env.REDO || ''), inRedo = redo && f >= +redo[1] && f <= +redo[2];   // REDO=a-b: re-render those frames even if saved
+    if (redo && !inRedo) continue;
+    if (inRedo || !(process.env.RESUME && fs.existsSync(fn))) { await p.evaluate((x) => window.renderFrame(x), f); await grab(fn); n++; last = fn; }
     if (f % 5 === 0 || f === z) progress(f - a + 1, z - a + 1, (Date.now() - t1) / 1000 * (f - a + 1) / Math.max(1, n), last, false);
     if (f % 50 === 0) console.log('frame', f, ((Date.now() - t1) / Math.max(1, n) / 1000).toFixed(3), 's/frame');
   }

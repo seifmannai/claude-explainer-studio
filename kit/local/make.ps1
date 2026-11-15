@@ -8,6 +8,7 @@
 #   steps  comma list, default "voice,words,audio,render,encode"; also: install, wxwords, sfxkit, sfxmix
 #   scale  1..2 (default 2)
 #   page   default web/short.html
+#   redo   "a-b": render only frames a..b again (patch one shot), then encode as usual
 #   query  page options, e.g. "anim=1" (540x960, 2 samples: the animatic)
 # Writes everything to out\<name>\ : STATUS.txt (one line per step, last line DONE or FAILED),
 #   words.json, final.wav, <name>.mp4 (full quality, for upload), preview.mp4 (small, for Claude QA), sheet.jpg.
@@ -102,6 +103,7 @@ Step 'sfxmix' {
   if ($LASTEXITCODE -eq 0) { Copy-Item "$out\mix\mix.wav" "$out\final.wav" -Force; ffmpeg -v error -y -i "$out\mix\mix.wav" -b:a 192k "$out\mix_preview.mp3" }
 }
 Step 'render' {
+  $env:REDO = $(if ("$($job.redo)" -match '^\d+-\d+$') { "$($job.redo)" } else { '' })   # e.g. "0-40": patch a shot after a full render
   $env:PAGE_QUERY = $(if ($job.query -and ("$($job.query)" -match '^[A-Za-z0-9_=&.,\-]+$')) { "$($job.query)" } else { '' })
   $env:RESUME = '1'; $env:SCALE = $scale; $env:PROGRESS = "$Root\out\progress.html"
   Write-Host "   rendering $($job.name) at ${scale}x - double-click '3-VIEW PROGRESS' to watch" -ForegroundColor Cyan

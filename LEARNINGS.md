@@ -3,6 +3,15 @@
 
 
 
+
+## 2026-11-15 - v3 animatic (cinematic camera, walk, pose variety)
+- 1.6-1.7 s/frame at 540x960 / 2 spp (box-sized lighting helped a little). alive_check: 0.3 % still (only the fade-out), 177 cuts.
+- An orbit that starts at a wider angle than the old fixed shot can begin BEHIND a wall: the hook shot hid Steve.
+  Rule: check an orbit's start AND end against the set before rendering; keep inside-shaft orbits within ~0.3 rad of
+  a known-good angle unless a still proves the wider angle is clear.
+- New: REDO=a-b (make job "redo") re-renders only a frame range of a finished render, then re-encodes. Use it to patch
+  one shot instead of re-rendering a 5-hour film.
+
 ## 2026-11-14 (night) - v2 animatic
 - Old v1 word times were up to 3.6 s off; audio/timewarp.json (new word time -> v1 time, 233 pairs) re-timed every v1
   event and the cue sheet at once. Keep authoring new events with Words().at() so this never happens again.

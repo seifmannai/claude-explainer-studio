@@ -151,7 +151,7 @@ function camera(t, s) {
   const F2 = (tt) => [0, carY(tt) + 1.4, -0.9];
   const hero = (u, a0 = 0.32, a1 = 0.12, r0 = 3.6, r1 = 3.2) => O([0, C + 1.75, -0.7], lerp(r0, r1, Cam.ease.smooth(u)), -0.4, a0, a1, u, 50, 0.012);
   const shots = [
-    [0, 1.48, (u) => O([-2.3, 1.45, -1.1], lerp(3.4, 2.9, u), 0.15, 0.62, 0.22, u, 40, 0.01)],                    // hook: arc in on Steve
+    [0, 1.48, (u) => O([-2.3, 1.45, -1.1], lerp(3.3, 2.8, u), 0.15, 0.42, 0.24, u, 40, 0.01)],                    // hook: arc in on Steve (0.62 started behind the wall edge: v3 animatic)
     [1.48, 3.7, (u) => Cr([0, 0, -0.9], 5.2, lerp(0.35, -0.2, u), 1.0, 30, 8, 37.4, u, 50)],                         // crane up the ten floors
     [3.7, 5.24, (u) => O([-2.3, 1.3, -1.1], lerp(3.0, 2.55, u), 0.2, -0.15, 0.12, u, 40, 0.012)],                   // given up: slow push-arc
     [5.24, 7.66, (u) => O([0, 3.0, -0.9], 10.2, 1.0, 0.45, -0.25, u, 46)],                                           // the build: big orbit
