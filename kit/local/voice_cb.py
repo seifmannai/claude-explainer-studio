@@ -1,5 +1,5 @@
 # Expressive narration with Chatterbox TTS (Resemble AI, MIT) on the PC GPU. Same contract as voice_blend.py.
-#   python voice_cb.py script.txt out_dir [--ref ref.wav] [--exag 0.6]
+#   python voice_cb.py script.txt out_dir [--ref ref.wav] [--exag 0.6] [--tempo 1.12]
 #   python voice_cb.py --selftest out_dir
 # script.txt lines: "text|speed|pause" ('#' comments). Speed is ignored by Chatterbox (it paces itself); pause is kept.
 # Writes out_dir/voice_raw.wav, voice.wav (same polish chain as Kokoro) and sentences.json.
@@ -10,6 +10,7 @@ args = sys.argv[1:]
 selftest = args and args[0] == '--selftest'
 ref = args[args.index('--ref') + 1] if '--ref' in args else None
 exag = float(args[args.index('--exag') + 1]) if '--exag' in args else 0.6
+tempo = float(args[args.index('--tempo') + 1]) if '--tempo' in args else 1.0   # speed-up after cloning (pitch kept)
 import torch
 from chatterbox.tts import ChatterboxTTS
 dev = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -39,11 +40,13 @@ for raw in open(src, encoding='utf-8'):
     parts += [a, np.zeros(int(sr * float(pause)), 'float32')]; t += len(a) / sr + float(pause)
     print(len(sents), text)
 audio = np.concatenate(parts); audio = audio / np.abs(audio).max() * 0.8
+if tempo != 1.0:   # sentence times scale with the speed-up
+    for s_ in sents: s_['t0'], s_['t1'] = round(s_['t0'] / tempo, 3), round(s_['t1'] / tempo, 3)
 for s in sents: s['f0'], s['f1'] = round(s['t0'] * 30), round(s['t1'] * 30)
 sf.write(os.path.join(out, 'voice_raw.wav'), audio, sr)
 subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', os.path.join(out, 'voice_raw.wav'), '-af',
   'highpass=f=70,equalizer=f=180:t=q:w=1:g=2,equalizer=f=3500:t=q:w=1.2:g=1.5,'
   'acompressor=threshold=-20dB:ratio=2.5:attack=8:release=120,aecho=0.85:0.5:18|33:0.12|0.07,'
-  'loudnorm=I=-16:TP=-1.5', '-ar', '48000', os.path.join(out, 'voice.wav')], check=True)
+  'loudnorm=I=-16:TP=-1.5' + (f',atempo={tempo}' if tempo != 1.0 else ''), '-ar', '48000', os.path.join(out, 'voice.wav')], check=True)
 json.dump(sents, open(os.path.join(out, 'sentences.json'), 'w'), indent=1)
 print(f'{len(sents)} lines, {len(audio) / sr:.2f} s')

@@ -5,6 +5,7 @@
 #   name   output name, e.g. engine_v2   (required)
 #   voice  in/<file>.wav            (required for words/audio unless the 'voice' step makes it)
 #   tts    'kokoro' (default) or 'chatterbox' for the 'voice' step; it reads videos/<slug>/script.txt (text|speed|pause)
+#   ref    chatterbox only: voice sample to clone, e.g. in/voice_ref/my_voice_ref.wav (the user's own voice); tempo 0.8-1.5; exag 0-1
 #   steps  comma list, default "voice,words,audio,render,encode"; also: install, wxwords, sfxkit, sfxmix
 #   scale  1..2 (default 2)
 #   page   default web/short.html
@@ -44,7 +45,12 @@ Step 'wxwords' {
 }
 Step 'voice' {
   New-Item -ItemType Directory -Force $aud | Out-Null
-  if ("$($job.tts)" -eq 'chatterbox') { & "$Root\pycb\Scripts\python.exe" "$Studio\kit\local\voice_cb.py" "$vid\script.txt" $aud }
+  if ("$($job.tts)" -eq 'chatterbox') {
+    # ref = the user's own voice sample (cloned by Chatterbox), tempo = speed-up like the user's own recordings (~1.12)
+    $cbx = @(); if ((Ok $job.ref) -and (Test-Path "$Root\$($job.ref)")) { $cbx += @('--ref', "$Root\$($job.ref)") }
+    if ("$($job.tempo)" -match '^(0\.[89]\d*|1(\.\d+)?)$') { $cbx += @('--tempo', "$($job.tempo)") }
+    if ("$($job.exag)" -match '^0?\.\d+$|^1(\.0+)?$') { $cbx += @('--exag', "$($job.exag)") }
+    & "$Root\pycb\Scripts\python.exe" "$Studio\kit\local\voice_cb.py" "$vid\script.txt" $aud @cbx }
   else { $env:KOKORO_DIR = "$Root\models\kokoro"; & $py "$Studio\kit\explainer3d\tools\voice_blend.py" "$vid\script.txt" $aud }
   if ($LASTEXITCODE -eq 0) { New-Item -ItemType Directory -Force "$Root\in" | Out-Null; Copy-Item "$aud\voice.wav" "$Root\in\$($job.slug)_voice.wav" -Force; Copy-Item "$aud\voice.wav" "$out\voice.wav" -Force; Copy-Item "$aud\sentences.json" "$out\sentences.json" -Force }
 }
