@@ -1,5 +1,18 @@
 # Learnings (newest first)
 
+## 2026-11-16 - touchscreen (video 4): first film built for VideoHub's live preview
+- New pipeline that needs NO render to review: videos/<slug>/film/ follows VideoHub's contract (renderOut(t), READY,
+  VH_SCENES, render.js chunked, audio/mix.wav + stems voice/music/sfx, voice/words.json as [[s,e,w]] for the transcript).
+  Copied into Documents\VideoHub\films\<slug> with device_commit_files; VideoHub lists it on its own.
+- All-2D drawn world (Stick + Stick.sketchCtx sets) plays live: ~2-40 ms a frame in headless Chrome, ~300 ms only in the
+  OldFilm.rewind transitions. Much faster to iterate than the path tracer; good default for history/evolution topics.
+- cues.js = one cue sheet on words used by BOTH the picture and the sound mix (node prints it, tools/mix.py reads it).
+  Re-voicing = new words.json -> re-run mix.py; nothing is retimed by hand.
+- Guide voice made in the cloud (kokoro-onnx + model files from the kokoro-onnx GitHub release; blend40) with word times
+  estimated per line by syllables. Good enough for the live preview; the real voice + WhisperX words replace it.
+- kit/fx/oldfilm.js: grain is now seeded (it used Math.random): render workers must draw identical frames.
+- Screen-poking geometry: a 2D character can't reach a bench screen from the floor; a step stool fixes the reach (and is funny).
+
 
 
 

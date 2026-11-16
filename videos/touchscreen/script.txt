@@ -1,0 +1,44 @@
+# text | speed | pause after (s). Blank line = scene break. Voice (guide): michael*0.4 + puck*0.6
+Meet Dave.|1.0|0.25
+Dave wants a screen that feels his finger...|1.0|0.2
+and pokes back.|1.0|0.5
+
+Problem: it's nineteen sixty-five.|1.02|0.2
+Screens feel nothing.|0.95|0.45
+
+So Dave copies a British radar engineer.|1.04|0.3
+Cover the glass in a thin layer of electricity.|1.02|0.3
+Your finger is basically a bag of salty water...|1.04|0.15
+so it steals a tiny bit of charge.|1.0|0.3
+The screen notices the theft. That's your touch.|1.0|0.5
+
+But Dave thinks electricity is scary.|1.05|0.45
+
+So: two plastic sheets, with a tiny gap.|1.0|0.25
+Press, they touch, and the circuit closes.|1.02|0.35
+Dave presses with a hammer.|1.0|0.6
+Not that hard, Dave.|0.92|0.5
+
+Plan C: a grid of invisible light beams.|1.02|0.25
+Block a beam, and the screen knows where.|1.02|0.35
+Then a fly lands on it.|1.0|0.7
+Plan C is fired.|0.95|0.5
+
+Pressure screens win, for now. Phones get a little pen.|1.06|0.3
+Dave loses it in four minutes.|1.0|0.55
+
+Then, two thousand seven. Back to stealing electricity...|1.04|0.15
+but with a grid of wires too thin to see.|1.02|0.3
+Now it feels ten fingers at once.|1.02|0.45
+Then winter comes.|0.95|0.55
+Gloves don't conduct, Dave. Nothing to steal.|1.0|0.5
+
+New problem: Dave's face grease.|1.0|0.4
+So the glass gets an oil-repelling coat. Grease just slides off.|1.04|0.45
+
+Today, the touch sensor is built right into the screen.|1.04|0.25
+And with OLED, every pixel makes its own light...|1.02|0.15
+so thin, the screen can fold.|1.0|0.6
+The other way, Dave.|0.92|0.6
+
+Finally: a screen that pokes back.|0.98|0.8

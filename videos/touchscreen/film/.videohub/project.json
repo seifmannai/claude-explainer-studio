@@ -1,0 +1,21 @@
+{
+ "title": "Dave builds a touchscreen",
+ "status": "in-progress",
+ "render": {
+  "script": "render.js",
+  "workers": 2,
+  "env": {
+   "DUR": "76.082"
+  }
+ },
+ "live": {
+  "page": "index.html",
+  "audio": "audio/mix.wav",
+  "dur": 76.082,
+  "fps": 30
+ },
+ "transcript": {
+  "file": "voice/words.json",
+  "offset": 0
+ }
+}

@@ -8,8 +8,10 @@
   const h = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
   const sm = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
   let GR = null;
-  const grains = () => GR || (GR = [0, 1, 2, 3].map(() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); const d = x.createImageData(256, 256);
-    for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - 0.5) * 230; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } x.putImageData(d, 0, 0); return c; }));
+  let GR_N = 0;
+  const grains = () => GR || (GR = [0, 1, 2, 3].map(() => { GR_N++; const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); const d = x.createImageData(256, 256);
+    let sd = 9871 + GR_N * 7919; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;   // seeded: every render worker gets the same grain
+    for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (rnd() - 0.5) * 230; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } x.putImageData(d, 0, 0); return c; }));
 
   function apply(g, src, f, k, W, H) {
     const S = W / 1080;

@@ -1,5 +1,13 @@
 # Where we left off (read this first in a new session)
 
+## 2026-11-16 23:50: video 4 "Dave builds a touchscreen" (videos/touchscreen) - IN VIDEOHUB LIVE PREVIEW
+- Script approved by the user in chat (videos/touchscreen/script.txt, PLAN.md). Character: Dave (cap, orange shirt).
+- Film code: videos/touchscreen/film (copied to Documents\VideoHub\films\touchscreen on the PC). Guide Kokoro voice.
+- Waiting for the user's VideoHub notes ("VideoHub: N notes on ..."): fix in film/*.js, copy changed files to the PC.
+- Then: the user's own voice (or Kokoro on the PC) -> WhisperX words -> regenerate words.json/words-data.js -> mix.py.
+- Render only when the user asks (VideoHub queue, render.js is 1080x1920, 30 fps, 2 s chunks).
+
+
 ## 2026-11-15 18:15: steve-elevator FINAL DONE
 - Final: `out\steve_final_v2\steve_final_v2.mp4` on the PC (1080x1920, 131 s, hook patched). Preview sent to the user;
   waiting for his verdict / upload. Known small issues: lamp glow in the claws close-up, Steve small in some wides,

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dave builds a touchscreen</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; height: 100%; }
+  /* the canvas keeps its fixed size (1080x1920); the page only scales it to fit */
+  canvas { display: block; height: 100vh; width: 56.25vh; max-width: 100vw; max-height: 177.78vw; margin: auto; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="kit/stick.js"></script>
+<script src="kit/oldfilm.js"></script>
+<script src="kit/words.js"></script>
+<script src="words-data.js"></script>
+<script src="cues.js"></script>
+<script src="props.js"></script>
+<script src="shots.js"></script>
+<script src="film.js"></script>
+</body>
+</html>
