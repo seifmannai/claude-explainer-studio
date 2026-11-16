@@ -14,6 +14,8 @@ that loops to the start (the haptic buzz finally pokes him back).
 - styles/FUN-RULES.md (YOU-invent-it shape, gags, 1 idea), styles/STYLE.md (captions: 3 words, active word orange, y=1400)
 - kit/char2d/stick.js (Dave: alive, act, walk, vary), kit/fx/oldfilm.js (1965 flashback), kit/timeline/words.js
 - skills/ours/always-alive-3d section 4b (history = time travel + old film + real person acting it out)
+- skills/ours/character-acting + ACTING.md (v2), skills/vendor/rossark-motion-skill (acting), emotional-narrative, character-appeal
+- kit/char2d/cast/dave.js + DAVE.md (the character)
 
 ## Shot plan (a visual for every line)
 | # | Line | Picture |

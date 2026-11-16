@@ -156,7 +156,7 @@
       k.beginPath(); k.ellipse(L * 0.95, 0, 300, 230, 0, 0, 7); k.fillStyle = '#d23b3b'; k.fill(); k.stroke();
       k.beginPath(); k.roundRect(-Wd * 0.2, -Wd * 0.75, L * 0.9, Wd * 1.5, Wd * 0.75); k.fill(); k.stroke();
       g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(L * 0.2 + i * 70, -Wd * 0.3 + 18 * Math.sin(i), 9, 0, 7); g.fill(); }
-      k.beginPath(); k.rect(L * 1.25, -260, 120, 520); k.fillStyle = '#f2f2f2'; k.fill(); k.stroke();
+      k.beginPath(); k.ellipse(L * 0.55, -Wd * 0.95, 70, 44, -0.5, 0, 7); k.fillStyle = '#d23b3b'; k.fill(); k.stroke();   // thumb
     } else {
       k.beginPath(); k.roundRect(L * 0.75, -260, L * 1.2, 380, 120); k.fillStyle = o.sleeve || '#e8762d'; k.fill(); k.stroke();   // sleeve
       k.beginPath(); k.roundRect(L * 0.55, -250, 360, 330, 110); k.fillStyle = skin; k.fill(); k.stroke();                       // fist
@@ -245,8 +245,9 @@
     k.beginPath(); k.arc(-40, -150 - br, 60, 0, 7); k.fill(); k.stroke();
     for (const sd of [-1, 1]) { k.beginPath(); k.moveTo(-40 + sd * 22, -196 - br); k.lineTo(-40 + sd * 50, -230 - br); k.lineTo(-40 + sd * 56, -176 - br); k.fill(); k.stroke(); }
     const blink = (t % 3.1) < 0.12;
-    g.fillStyle = INK; for (const sd of [-1, 1]) { g.beginPath(); g.ellipse(-40 + sd * 22, -158 - br, 8, blink ? 1.5 : 12, 0, 0, 7); g.fill(); }
-    if (o.pen) { g.save(); g.translate(-40, -122 - br); g.rotate(-0.15); g.fillStyle = '#e3e6ea'; g.strokeStyle = INK; g.lineWidth = 5; g.beginPath(); g.roundRect(-90, -7, 180, 14, 7); g.fill(); g.stroke(); g.restore(); }
+    g.fillStyle = INK; for (const sd of [-1, 1]) { g.beginPath(); g.ellipse(-40 + sd * 22, -158 - br + (o.pen ? 4 : 0), 8, blink ? 1.5 : (o.pen ? 5 : 12), 0, 0, 7); g.fill(); }
+    if (o.pen) { g.save(); g.translate(-22, -120 - br); g.rotate(0.35); g.fillStyle = '#e3e6ea'; g.strokeStyle = INK; g.lineWidth = 5; g.beginPath(); g.roundRect(0, -6, 110, 12, 6); g.fill(); g.stroke(); g.restore();
+      g.strokeStyle = INK; g.lineWidth = 4; g.beginPath(); g.moveTo(-56, -126 - br); g.quadraticCurveTo(-40, -118 - br, -24, -124 - br); g.stroke(); }
     else { g.strokeStyle = INK; g.lineWidth = 4; g.beginPath(); g.moveTo(-50, -126 - br); g.quadraticCurveTo(-40, -118 - br, -30, -126 - br); g.stroke(); }
     g.restore();
   }

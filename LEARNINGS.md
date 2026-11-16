@@ -1,5 +1,18 @@
 # Learnings (newest first)
 
+## 2026-11-17 - touchscreen v2: meaningful acting (user: "Dave moves with no meaning, AI slop")
+- Root cause: stock expressions + Stick.vary (random gesture per key) + Stick.alive eye darts every 0.9 s = busy, meaningless.
+  Fix: ACTING.md per video (think -> want -> poses), Dave.CALM idle, lookAt targets, Stick.reach for contact, props in hands.
+  New skill skills/ours/character-acting; vendored rossark-motion-skill + emotional-narrative + character-appeal (MIT).
+- Our own review of v1 found: pokes ending in the air (arm too short: Stick IK reach is ~193 units x scale), phones
+  covering the face (hand too high + phone too big), hammer vanishing, old-film sepia killing the blue electricity
+  (the one thing we explain). Fixes: step stool + reach clamp; phone 140 units at hand y<=200; hammer falls and bounces;
+  shot.over() draws the science in colour on top of OldFilm.
+- kit: Stick hand pointR/pointL, holdR/holdL props (hammer, teacup, pencil, fries, or a function), mitts, costume parts
+  (goggles, pencil, toolbelt, nose, freckles, plaster, glasses, moustache, tuft, capBack), alive() options, Stick.reach().
+- Captions auto-drop to y=1640 when a drawn head is in the 1320-1480 band (window.__HEADS from drawChar).
+- Ending loops: a whip from the last beat into frame 0 of the film (TR {loop:true}).
+
 ## 2026-11-16 - touchscreen (video 4): first film built for VideoHub's live preview
 - New pipeline that needs NO render to review: videos/<slug>/film/ follows VideoHub's contract (renderOut(t), READY,
   VH_SCENES, render.js chunked, audio/mix.wav + stems voice/music/sfx, voice/words.json as [[s,e,w]] for the transcript).

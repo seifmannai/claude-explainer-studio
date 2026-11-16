@@ -18,7 +18,8 @@
     // costume (strings switch at the middle of a blend): hat '' | 'top' | 'bowler' | 'cap' | 'bonnet'; coat = frock coat colour;
     // beard 0..1 (chin curtain); bowtie 0/1; prop '' | 'axe' held in the right hand at propAng (radians)
     skin: '#f6efe2', pants: '#2c3140', hairCol: '#2a2630', hat: '', hatCol: '#1d1a1c', hatTip: 0, coat: '', beard: 0, bowtie: 0,
-    stubble: 1, tieOn: 1, prop: '', propAng: 0, hairOff: [0, 0], hairRot: 0, turn: 0 };   // turn -1..1: face looks left/right (3/4 view; features slide, far ear hides)   // hairOff/hairRot: the hair block can leave the head (gags)
+    mitts: '', stubble: 1, tieOn: 1, prop: '', propAng: 0, pointL: 0, pointR: 0, holdL: null, holdR: null, holdAngL: 0, holdAngR: 0,
+    goggles: 0, gogglesOn: 0, pencil: 0, toolbelt: 0, nose: 0, freckles: 0, plaster: 0, glasses: 0, moustache: 0, tuft: 0, capBack: 0, hairOff: [0, 0], hairRot: 0, turn: 0 };   // turn -1..1: face looks left/right (3/4 view; features slide, far ear hides)   // hairOff/hairRot: the hair block can leave the head (gags)
   // brow = [raise, angle] per eye (angle > 0 = inner end down = angry); hands/feet are offsets from the ground point, y up
   const EXPR = {
     deadpan: { lid: [0.5, 0.5], brow: [[-4, 0], [-4, 0]], mouth: 'flat' },
@@ -63,16 +64,20 @@
   // ---------------------------------------------------------------- idle layers: never still
   const h = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
   const ss = (x) => x * x * (3 - 2 * x);
-  function alive(p0, t, seed = 1) {
-    const p = JSON.parse(JSON.stringify(p0)), T = 2 * Math.PI;
+  // opt = {eyes, fidget, shift, sway} multipliers (default 1). ACTING (user rule 2026-11-16): use calm values
+  // ({eyes:.15, fidget:.3, shift:.5, sway:.6}) so idle life never reads as random business; the acting keys carry the meaning.
+  function alive(p0, t, seed = 1, opt = {}) {
+    const hold = {}; for (const k of ['holdL', 'holdR']) { hold[k] = p0[k]; }
+    const p = JSON.parse(JSON.stringify(p0)), T = 2 * Math.PI; Object.assign(p, hold);
+    const oE = opt.eyes ?? 1, oF = opt.fidget ?? 1, oS = opt.shift ?? 1, oW = opt.sway ?? 1;
     const br = Math.sin(T * 0.29 * t + seed) + 0.35 * Math.sin(T * 0.11 * t + seed * 3);           // breath
     p.shoulders += 3.2 * br; p.bob += 2.2 * br; p.squash += 0.015 * br;
     // weight shift every ~4 s, eased
     const k = Math.floor(t / 4 + h(seed)), side = h(k * 3.7 + seed) < 0.5 ? -1 : 1, prev = h((k - 1) * 3.7 + seed) < 0.5 ? -1 : 1;
     const u = ss(Math.min(((t / 4 + h(seed)) % 1) * 4 / 0.6, 1));
     const w = lerp(prev, side, u);
-    p.hip[0] += 9 * w + 3 * Math.sin(T * 0.37 * t + seed); p.hip[1] -= 3 * Math.abs(w); p.lean += 0.012 * Math.sin(T * 0.23 * t + seed);
-    p.tilt += 0.035 * Math.sin(T * 0.17 * t + seed * 2) - 0.02 * w;
+    p.hip[0] += oS * (9 * w + 3 * Math.sin(T * 0.37 * t + seed)); p.hip[1] -= oS * 3 * Math.abs(w); p.lean += oW * 0.012 * Math.sin(T * 0.23 * t + seed);
+    p.tilt += oW * (0.035 * Math.sin(T * 0.17 * t + seed * 2) - 0.02 * w);
     // blink: irregular, 3 frames closed, sometimes double
     const P = 2.7, bk = Math.floor(t / P), bt = t - bk * P - h(bk + seed) * 1.4;
     const b1 = bt > 0 && bt < 0.17 ? 1 - Math.abs(bt / 0.085 - 1) : 0;
@@ -83,10 +88,10 @@
     const dk = Math.floor(t / 0.9 + h(seed * 5)), dt = (t / 0.9 + h(seed * 5)) % 1;
     const tgt = (n) => [(h(n * 2.1 + seed) - 0.5) * 0.55, (h(n * 4.3 + seed) - 0.5) * 0.35];
     const a = tgt(dk - 1), b = tgt(dk), dd = ss(Math.min(dt * 0.9 * 12, 1));
-    p.look = [p.look[0] + lerp(a[0], b[0], dd), p.look[1] + lerp(a[1], b[1], dd)];
+    p.look = [p.look[0] + oE * lerp(a[0], b[0], dd), p.look[1] + oE * lerp(a[1], b[1], dd)];
     // hands fidget, never in sync; tie and hair drift
-    p.handL[0] += 5 * Math.sin(T * 0.41 * t + seed); p.handL[1] += 4 * Math.sin(T * 0.53 * t + seed * 2) + 2.5 * br;
-    p.handR[0] += 5 * Math.sin(T * 0.47 * t + seed * 4); p.handR[1] += 4 * Math.sin(T * 0.31 * t + seed * 5) + 2.5 * br;
+    p.handL[0] += oF * 5 * Math.sin(T * 0.41 * t + seed); p.handL[1] += oF * 4 * Math.sin(T * 0.53 * t + seed * 2) + 2.5 * br;
+    p.handR[0] += oF * 5 * Math.sin(T * 0.47 * t + seed * 4); p.handR[1] += oF * 4 * Math.sin(T * 0.31 * t + seed * 5) + 2.5 * br;
     p.tie += 0.05 * Math.sin(T * 0.6 * t + seed); p.hair += 0.08 * (Math.sin(T * 0.5 * t) * 0.5 + 0.5);
     p.brow = p.brow.map(([r, an], i) => [r + 1.5 * Math.sin(T * 0.2 * t + i + seed), an]);
     return p;
@@ -96,7 +101,7 @@
   // k = amount 0..1 (blend in/out at start and stop). Contact -> down -> passing -> up, arms opposite, head lag, face turns.
   function walk(p0, ph, dir = 1, k = 1, stride = 1) {
     if (k <= 0) return p0;
-    const p = JSON.parse(JSON.stringify(p0)), a = ph * Math.PI, s = Math.sin(a), c = Math.cos(a);
+    const p = JSON.parse(JSON.stringify(p0)), a = ph * Math.PI, s = Math.sin(a), c = Math.cos(a); p.holdL = p0.holdL; p.holdR = p0.holdR;
     const sideL = Math.max(0, s), sideR = Math.max(0, -s);                      // which foot is in the air
     p.footL = [p.footL[0] + k * stride * (dir * 46 * c), p.footL[1] + k * 30 * sideL];
     p.footR = [p.footR[0] - k * stride * (dir * 46 * c), p.footR[1] + k * 30 * sideR];
@@ -113,7 +118,7 @@
   const GEST = [[[-70, 330], [95, 205]], [[-150, 260], [150, 255]], [[-40, 300], [40, 310]], [[-95, 175], [170, 360]], [[-170, 380], [70, 190]],
     [[-60, 245], [120, 420]], [[-110, 200], [60, 300]], [[-30, 360], [130, 230]], [[-135, 300], [100, 170]], [[-85, 420], [85, 180]]];
   function vary(p0, seed, amt = 1) {
-    const p = JSON.parse(JSON.stringify(p0)), r = (k) => { const v = Math.sin(seed * 91.7 + k * 37.3) * 43758.5453; return v - Math.floor(v); };
+    const p = Object.assign(JSON.parse(JSON.stringify(p0)), { holdL: p0.holdL, holdR: p0.holdR }), r = (k) => { const v = Math.sin(seed * 91.7 + k * 37.3) * 43758.5453; return v - Math.floor(v); };
     const gst = GEST[Math.floor(r(1) * GEST.length)], mir = r(2) < 0.5 ? 1 : -1, k = amt * 0.65;
     const gL = mir > 0 ? gst[0] : [-gst[1][0], gst[1][1]], gR = mir > 0 ? gst[1] : [-gst[0][0], gst[0][1]];
     p.handL = [lerp(p.handL[0], gL[0], k), lerp(p.handL[1], gL[1], k)]; p.handR = [lerp(p.handR[0], gR[0], k), lerp(p.handR[1], gR[1], k)];
@@ -125,7 +130,7 @@
   }
 
   // ---------------------------------------------------------------- sketch layer (line boil)
-  let DRAW = 0, PATH = 0;
+  let DRAW = 0, PATH = 0, MITT = '';   // MITT = glove colour (pose.mitts) for the hands
   const hb = (n) => { const s = Math.sin(n * 12.9898 + DRAW * 78.233) * 43758.5453; return s - Math.floor(s); };
   const wob = (x, k) => { const a = Math.floor(x), f = x - a, u = f * f * (3 - 2 * f); return (hb(a * 1.31 + k * 17.7) * (1 - u) + hb((a + 1) * 1.31 + k * 17.7) * u) * 2 - 1; };
   class Sk {
@@ -214,18 +219,19 @@
     const capA = ang(P[0], R[0]); c.ellipse(P[0][0], P[0][1], w0 / 2, w0 / 2, 0, capA, capA - Math.PI, true); c.closePath();
     c.fillStyle = fill; c.fill(); c.lineWidth = lw; c.stroke(); return P;
   }
-  function hand(c, at, from, side, lw) {        // mitten + thumb, pointing along the forearm
+  function hand(c, at, from, side, lw, point = 0) {        // mitten + thumb, pointing along the forearm; point 0..1 = index finger out
     const a = Math.atan2(at[1] - from[1], at[0] - from[0]);
     c.save(); c.translate(at[0], at[1]); c.rotate(a);
-    c.beginPath(); c.ellipse(6, 0, 21, 17, 0, 0, 7); c.fillStyle = SKIN; c.fill(); c.lineWidth = lw; c.stroke();
-    c.beginPath(); c.ellipse(4, side * 15, 10, 7, side * 0.6, 0, 7); c.fill(); c.stroke();
+    if (point > 0.05) { c.beginPath(); c.roundRect(10, -6 - side * 4, 16 + 30 * point, 13, 6.5); c.fillStyle = SKIN; c.fill(); c.lineWidth = lw * 0.8; c.stroke(); }
+    c.beginPath(); c.ellipse(6, 0, 21 * (MITT ? 1.35 : 1), 17 * (MITT ? 1.35 : 1), 0, 0, 7); c.fillStyle = MITT || SKIN; c.fill(); c.lineWidth = lw; c.stroke();
+    c.beginPath(); c.ellipse(4, side * 15 * (MITT ? 1.4 : 1), 10, 7, side * 0.6, 0, 7); c.fill(); c.stroke();
     c.lineWidth = lw * 0.5; c.beginPath(); c.moveTo(14, -6); c.lineTo(24, -5); c.moveTo(14, 4); c.lineTo(23, 5); c.stroke();   // finger lines
     c.restore();
   }
 
   function draw(c0, X, Y, s, p, t = 0) {
     DRAW = Math.floor(t * g.Stick.boilFps + 1e-6) + (p.seed || 0) * 7919; PATH = 0;
-    SKIN = p.skin || '#f6efe2'; PANTS = p.pants || '#2c3140'; HAIR = p.hairCol || '#2a2630';
+    MITT = p.mitts || ''; SKIN = p.skin || '#f6efe2'; PANTS = p.pants || '#2c3140'; HAIR = p.hairCol || '#2a2630';
     const SLEEVE = p.coat || p.shirt;
     const c = sketch(c0), L = 8;
     c0.save(); c0.translate(X + p.hip[0] * 0.5 * s, Y); c0.scale(s, s * 0.22); c0.fillStyle = 'rgba(0,0,0,.25)'; c0.beginPath(); c0.arc(0, 0, 100, 0, 7); c0.fill(); c0.restore();   // contact shadow (the 3D world adds the real one)
@@ -236,7 +242,7 @@
     const headC = [topX - p.tilt * 40, topY + 100 + p.bob];
     // far arm (behind the body)
     const [eL, hL] = ik(shL, p.handL, 86, 82, -1, topX);
-    tube(c, shL, eL, hL, 30, 22, SLEEVE, L); hand(c, hL, eL, -1, L - 2);
+    tube(c, shL, eL, hL, 30, 22, SLEEVE, L); holdProp(c, p.holdL, hL, eL, p.holdAngL, s); hand(c, hL, eL, -1, L - 2, p.pointL);
     // legs: trousers + shoes
     for (const [f, side] of [[p.footL, -1], [p.footR, 1]]) {
       const hp = [hipX + side * 24, hipY + 4], ank = [f[0], f[1] + 26];
@@ -250,6 +256,13 @@
       c.lineTo(sd * 14, hipY - 100); c.closePath(); c.fillStyle = p.coat; c.fill(); c.lineWidth = L; c.stroke(); }
     // pelvis
     c.beginPath(); c.roundRect(hipX - 46, hipY - 22, 92, 44, 18); c.fillStyle = PANTS; c.fill(); c.lineWidth = L; c.stroke();
+    if (p.toolbelt) {   // inventor's tool belt: pouch on the near hip with a screwdriver and a wrench sticking out
+      const bx = hipX + 40, by = hipY - 6;
+      c.beginPath(); c.moveTo(bx + 4, by + 30); c.lineTo(bx + 8, by + 78); c.lineWidth = 9; c.strokeStyle = '#c8452f'; c.stroke(); c.strokeStyle = INK;
+      c.beginPath(); c.moveTo(bx + 26, by + 26); c.lineTo(bx + 36, by + 66); c.lineWidth = 7; c.strokeStyle = '#9aa3ad'; c.stroke(); c.strokeStyle = INK;
+      c.beginPath(); c.arc(bx + 37, by + 70, 9, 0, 7); c.lineWidth = 5; c.stroke();
+      c.beginPath(); c.roundRect(bx - 18, by - 34, 62, 64, [6, 6, 16, 16]); c.fillStyle = '#8a5a32'; c.fill(); c.lineWidth = 6; c.stroke();
+      c.lineWidth = 3; c.beginPath(); c.moveTo(bx - 12, by + 14); c.lineTo(bx + 38, by + 14); c.stroke(); }
     // torso: shirt (wider at the shoulders), shadow side, belt, tie, collar
     c.save(); c.transform(1, 0, -p.lean, 1, hipX, hipY);
     const W0 = 50, W1 = 58 + p.shoulders * 0.3;
@@ -296,7 +309,7 @@
       c.fillStyle = HAIR; c.fill(); c.lineWidth = 6; c.stroke();
       c.lineWidth = 3; for (let k = 0; k < 7; k++) { const bx = -60 + k * 20; c.beginPath(); c.moveTo(bx, -hh / 2 - 4); c.lineTo(bx + 4, -hh / 2 - 18 * p.beard); c.stroke(); } }
     if (p.hat) {   // hats sit on the hair; hatTip lifts and tilts it (greeting)
-      c.save(); c.translate(-6 + p.hatTip * 40, hh / 2 + 4 + p.hatTip * 70); c.rotate(-0.08 - p.hatTip * 0.5);
+      c.save(); c.translate(-6 + p.hatTip * 40 - p.capBack * 22, hh / 2 + 4 + p.hatTip * 70 + p.capBack * 10); c.rotate(-0.08 - p.hatTip * 0.5 + p.capBack * 0.32);
       c.fillStyle = p.hatCol; c.lineWidth = 7;
       if (p.hat === 'top') { c.beginPath(); c.ellipse(0, 0, 112, 20, 0, 0, 7); c.fill(); c.stroke(); c.beginPath(); c.moveTo(-64, 6); c.lineTo(-70, 168); c.quadraticCurveTo(0, 182, 70, 168); c.lineTo(64, 6); c.quadraticCurveTo(0, -6, -64, 6); c.closePath(); c.fill(); c.stroke();
         c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(-60, 12, 120, 18); }
@@ -304,6 +317,19 @@
       else if (p.hat === 'cap') { c.beginPath(); c.ellipse(0, 22, 88, 46, 0, 0, Math.PI); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.ellipse(52, 4, 62, 14, 0.05, 0, 7); c.fill(); c.stroke(); }
       else if (p.hat === 'bonnet') { c.beginPath(); c.ellipse(0, -10, 112, 110, 0, -0.2, Math.PI + 0.2); c.closePath(); c.fill(); c.stroke(); c.lineWidth = 5; c.beginPath(); c.moveTo(-80, -40); c.quadraticCurveTo(-60, -160, -10, -150); c.stroke(); }
       c.restore(); }
+    if (p.tuft) { c.save(); c.translate(-hw / 2 + 4, hh / 2 - 10); c.fillStyle = HAIR; c.lineWidth = 6;   // hair tuft escaping the cap at the back
+      for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(i * 14, 6); c.quadraticCurveTo(-22 + i * 8 - p.hair * 10, 24 + i * 6, -30 + i * 10 - p.hair * 18, 4 + i * 14 + p.hair * 16); c.quadraticCurveTo(-8 + i * 8, 8, i * 14 + 14, 0); c.fill(); c.stroke(); }
+      c.restore(); }
+    if (p.pencil && p.turn < 0.35) { c.save(); c.translate(hw / 2 + 2 - p.turn * 14, 22); c.rotate(-0.9);   // pencil behind the near ear
+      c.beginPath(); c.moveTo(-50, -6); c.lineTo(40, -6); c.lineTo(58, 0); c.lineTo(40, 6); c.lineTo(-50, 6); c.closePath(); c.fillStyle = '#f2c94c'; c.fill(); c.lineWidth = 5; c.stroke();
+      c.fillStyle = '#e88a9a'; c.fillRect(-56, -6, 8, 12); c.restore(); }
+    const goggles = (y, sc) => { c.save(); c.translate(p.turn * 20, y); c.lineWidth = 7;
+      c.beginPath(); c.moveTo(-hw / 2 - 6, 0); c.lineTo(hw / 2 + 6, 0); c.lineWidth = 12; c.strokeStyle = '#4a3a2a'; c.stroke(); c.strokeStyle = INK; c.lineWidth = 7;
+      for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * 36 * sc, 0, 30 * sc, 0, 7); c.fillStyle = '#b07a3a'; c.fill(); c.stroke();
+        c.beginPath(); c.arc(sx * 36 * sc, 0, 20 * sc, 0, 7); c.fillStyle = 'rgba(120,200,230,.85)'; c.fill(); c.lineWidth = 5; c.stroke();
+        c.fillStyle = 'rgba(255,255,255,.8)'; c.beginPath(); c.arc(sx * 36 * sc - 7, 7, 5, 0, 7); c.fill(); }
+      c.restore(); };
+    if (p.goggles && !p.gogglesOn) goggles(hh / 2 + 18, 0.85);
     c.save(); c.translate(p.turn * 30, 0);   // face features slide toward the turn (restored after the sweat drops)
     for (let i = 0; i < 2; i++) {
       const sx = i ? 1 : -1, ex = sx * 38 * (1 - 0.18 * Math.abs(p.turn)), ey = 8, lid = Math.max(p.lid[i], 0), ew = 27, eh = 21 * Math.min(Math.max(lid, 0.06), 1.2);
@@ -317,7 +343,14 @@
       const [br, ba] = p.brow[i]; c.save(); c.translate(ex, ey + 33 + br); c.rotate(sx * ba);
       c.lineWidth = 15; c.beginPath(); c.moveTo(-27, 0); c.quadraticCurveTo(0, 5, 27, 0); c.stroke(); c.restore();
     }
-    c.lineWidth = 6; c.beginPath(); c.moveTo(2, 2); c.lineTo(8, -18); c.lineTo(-2, -20); c.stroke();
+    if (p.nose) { c.beginPath(); c.ellipse(8, -16, 24, 20, 0.2, 0, 7); c.fillStyle = '#f0b59a'; c.fill(); c.lineWidth = 6; c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.arc(14, -8, 5, 0, 7); c.fill(); }
+    else { c.lineWidth = 6; c.beginPath(); c.moveTo(2, 2); c.lineTo(8, -18); c.lineTo(-2, -20); c.stroke(); }
+    if (p.freckles) { c.fillStyle = 'rgba(160,90,50,.7)'; for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) { c.beginPath(); c.arc(sx * (46 + (k % 2) * 12) + 4, -20 - Math.floor(k / 2) * 10 + (k % 2) * 4, 3, 0, 7); c.fill(); } }
+    if (p.plaster) { c.save(); c.translate(-58, -46); c.rotate(0.5); for (const r of [0, 1.4]) { c.save(); c.rotate(r); c.beginPath(); c.roundRect(-18, -6, 36, 12, 5); c.fillStyle = '#f1d3a6'; c.fill(); c.lineWidth = 4; c.stroke(); c.restore(); } c.restore(); }
+    if (p.moustache) { c.beginPath(); c.moveTo(0, -34); c.quadraticCurveTo(-30, -24, -48, -44); c.quadraticCurveTo(-26, -46, 0, -38); c.quadraticCurveTo(26, -46, 48, -44); c.quadraticCurveTo(30, -24, 0, -34); c.fillStyle = HAIR; c.fill(); c.lineWidth = 5; c.stroke(); }
+    if (p.glasses) { c.lineWidth = 5; for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * 38 * (1 - 0.18 * Math.abs(p.turn)), 8, 33, 0, 7); c.stroke(); } c.beginPath(); c.moveTo(-6, 12); c.quadraticCurveTo(0, 18, 6, 12); c.stroke(); }
+    if (p.goggles && p.gogglesOn) { c.restore(); goggles(8, 1.05); c.save(); c.translate(p.turn * 30, 0); }
     const my = -48, mw = 44 * p.mw, o = p.open; c.lineWidth = 7;
     const blob = (f) => { c.fillStyle = f; c.fill(); c.stroke(); };
     const teeth = (hgt, shape) => { c.fillStyle = '#fff'; c.fill(); c.stroke(); c.save(); shape(); c.clip(); c.lineWidth = 3;
@@ -346,10 +379,34 @@
     if (p.prop === 'axe') { c.save(); c.translate(hR[0], hR[1]); c.rotate(p.propAng);
       c.beginPath(); c.roundRect(-40, -8, 220, 16, 6); c.fillStyle = '#8a5a32'; c.fill(); c.lineWidth = 6; c.stroke();
       c.beginPath(); c.moveTo(150, 6); c.lineTo(205, 10); c.quadraticCurveTo(222, -30, 204, -64); c.lineTo(150, -46); c.closePath(); c.fillStyle = '#b8bcc4'; c.fill(); c.stroke(); c.restore(); }
-    hand(c, hR, eR, 1, L - 2);
+    holdProp(c, p.holdR, hR, eR, p.holdAngR, s);
+    hand(c, hR, eR, 1, L - 2, p.pointR);
     c.restore();
+  }
+  // held props: p.holdR / p.holdL = a name from Stick.PROPS or a function(c) drawing in hand space (x along the hand's
+  // grip, y DOWN, units = character units). holdAng turns it (radians, + = clockwise on screen). Drawn under the fingers.
+  function holdProp(c, h, at, from, ang, s) {
+    if (!h) return; const f = typeof h === 'function' ? h : g.Stick.PROPS[h]; if (!f) return;
+    c.save(); c.translate(at[0], at[1]); c.scale(1, -1); c.rotate(ang || 0); c.strokeStyle = INK; c.lineCap = c.lineJoin = 'round'; f(c); c.restore();
+  }
+  const PROPS = {
+    hammer(c) { c.beginPath(); c.roundRect(-30, -10, 230, 20, 9); c.fillStyle = '#a0683a'; c.fill(); c.lineWidth = 6; c.stroke();
+      c.beginPath(); c.roundRect(180, -58, 60, 116, 10); c.fillStyle = '#8f98a3'; c.fill(); c.stroke(); c.beginPath(); c.moveTo(190, -40); c.lineTo(230, -40); c.lineWidth = 3; c.stroke(); },
+    teacup(c) { c.beginPath(); c.roundRect(-30, -62, 60, 52, 10); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 5; c.stroke(); c.beginPath(); c.arc(32, -40, 13, -1.4, 1.4); c.stroke();
+      c.beginPath(); c.ellipse(0, -62, 30, 7, 0, 0, 7); c.fillStyle = '#9a6a3a'; c.fill(); c.stroke(); },
+    pencil(c) { c.beginPath(); c.moveTo(-20, -5); c.lineTo(70, -5); c.lineTo(90, 0); c.lineTo(70, 5); c.lineTo(-20, 5); c.closePath(); c.fillStyle = '#f2c94c'; c.fill(); c.lineWidth = 4; c.stroke(); },
+    fries(c) { for (let i = 0; i < 6; i++) { c.beginPath(); c.roundRect(-40 + i * 15, -110 - (i * 37 % 30), 12, 80, 3); c.fillStyle = '#f2c94c'; c.fill(); c.lineWidth = 4; c.stroke(); }
+      c.beginPath(); c.moveTo(-50, -50); c.lineTo(50, -50); c.lineTo(38, 30); c.lineTo(-38, 30); c.closePath(); c.fillStyle = '#d6332b'; c.fill(); c.lineWidth = 5; c.stroke(); },
+  };
+  // reach: hand offset (character units) that puts this arm's hand on screen point (px,py), clamped to what the arm can
+  // reach (so a poke never ends in the air: if it can't reach, move the character, don't fake it). Returns {hand, ok}.
+  function reach(X, Y, s, p, px, py, side = 'R', k = 0.97) {
+    const sq = 1 - (p.squash || 0) * 0.12, hipX = p.hip[0], hipY = 200 + p.hip[1], bodyH = 150 * sq, topX = hipX - p.lean * bodyH, topY = hipY + bodyH;
+    const sh = [topX + (side === 'R' ? 42 : -42), topY - 26 + p.shoulders], tx = (px - X) / s, ty = (Y - py) / s;
+    const dx = tx - sh[0], dy = ty - sh[1], d = Math.hypot(dx, dy), R = 168 * 1.15 * k;
+    return d <= R ? { hand: [tx, ty], ok: true } : { hand: [sh[0] + dx / d * R, sh[1] + dy / d * R], ok: false };
   }
   // sketchCtx: the same boiling ink for props and sets (ropes, planks, machines), so the world and the characters match
   function sketchCtx(c, t, seed = 1) { DRAW = Math.floor(t * g.Stick.boilFps + 1e-6) + seed * 7919; PATH = seed * 100000; return sketch(c); }
-  g.Stick = { draw, pose, mix, act, alive, walk, vary, curve, sketchCtx, EXPR, BASE, boilFps: 24 };   // 24 = a new drawing every frame; 12 = classic 'on twos'
+  g.Stick = { draw, pose, mix, act, alive, walk, vary, curve, sketchCtx, reach, PROPS, EXPR, BASE, boilFps: 24 };   // 24 = a new drawing every frame; 12 = classic 'on twos'
 })(typeof window !== 'undefined' ? window : globalThis);

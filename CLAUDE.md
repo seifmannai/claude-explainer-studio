@@ -10,7 +10,11 @@ The user's goal: awesome, high-quality 3D videos in mass production. A static pi
   looks dull, I want it to move a lot, like orbits"). Every shot = size + angle + one dominant move (kit/camera/rigs.js:
   orbit, crane, dolly, follow, whip, push, handheld, kick) + a reason; characters never slide, they walk (Stick.walk).
   Film theory reference: skills/vendor/director-skill (MIT).
-- Never the same character position twice (user, 2026-11-14): every line a new pose and a new place in frame (Stick.vary).
+- Never the same character position twice (user, 2026-11-14): every line a new pose and a new place in frame.
+- EVERY POSE HAS A MEANING (user, 2026-11-16: "he moves in random poses, it looks like AI slop"). MANDATORY: read
+  `skills/ours/character-acting/SKILL.md` and write videos/<slug>/ACTING.md (think -> want -> poses, per line) before animating.
+  No Stick.vary for main characters, calm idle (Dave.CALM), eyes always on a target, pokes land on the glass, props in hands.
+- Recurring characters live in kit/char2d/cast/ (Dave: DAVE.md + dave.js). Develop them: look, 3 traits, habits, tempo.
 - Also open, for the task at hand: `skills/vendor/animation-principles/` (the 12 principles, 3D, timing),
   `skills/vendor/shader-skills/` (SDF, noise, particles, post effects), `skills/vendor/opus-sound-layer/` (sound).
 - Gates before ANY full render (no exceptions, even if the user is in a hurry: say why):

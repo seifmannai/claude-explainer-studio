@@ -7,17 +7,17 @@
     const C = {
       DUR: WORDS.dur, S, E, at, end,
       // workshop (present)
-      poke0: at('Meet', 0) - 0.05, poke0b: at('Dave', 0) + 0.15, fingerTap: at('feels', 1), fingerTap2: at('finger', 1) + 0.1,
+      nod: at('Dave', 0), poke0: S(1) - 0.12, poke0b: S(1) + 0.25, fingerTap: at('feels', 1), fingerTap2: at('finger', 1) + 0.1,
       dream: at('pokes', 2) - 0.25, dreamPoke: at('back', 2),
       // 1965
       rw0: at('Problem', 3) - 0.1, rw1: end('sixty-five', 3) + 0.35,
       poke65: at('Screens', 4), poke65b: at('nothing', 4),
-      engIn: S(5) - 0.2, engStop: at('radar', 5), engPoint: at('engineer', 5) + 0.1,
+      engIn: S(5) - 0.2, engStop: at('radar', 5), engPoint: at('engineer', 5) + 0.1, copies: at('copies', 5),
       field: at('Cover', 6), fieldFull: at('electricity', 6),
       xray: S(7), salt: at('salty', 7),
       touch65: S(8), steal: at('steals', 8), charge: at('charge', 8),
       notice: at('notices', 9), theft: at('theft', 9), yourTouch: at('touch', 9),
-      scary: at('scary', 10), runOff: at('scary', 10) + 0.2,
+      scary: at('scary', 10), runOff: at('scary', 10) + 0.2, but: S(10), fingerLook: at('thinks', 10),
       ff1a: E(10) + 0.05, ff1b: S(11) + 0.55,
       // 1977 resistive
       sheets: at('plastic', 11), gap: at('gap', 11),
@@ -45,7 +45,8 @@
       // today
       stack: S(28), merge: at('built', 28), oled: at('OLED', 29), ownLight: at('own', 29),
       fold: at('fold', 30), wrongWay: end('fold', 30) + 0.12, snap: end('fold', 30) + 0.42, otherWay: S(31),
-      final: S(32), buzz: at('pokes', 32) - 0.1, pokeBack: at('back', 32), scream: at('back', 32) + 0.15,
+      final: S(32), tap: at('screen', 32), buzz: at('pokes', 32) - 0.1, pokeBack: at('back', 32), scream: at('back', 32) + 0.15,
+      loopA: Math.min(WORDS.dur - 0.5, end('back', 32) + 0.75), wants: at('wants', 1), wantsB: at('screen', 1),
     };
     return C;
   };
