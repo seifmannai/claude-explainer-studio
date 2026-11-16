@@ -77,7 +77,7 @@
     const heads = window.__HEADS || [], y0 = heads.some(([a, b]) => b > 1320 && a < 1480) ? 1640 : 1400;
     c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
     const size = 86, font = `900 ${size}px "Inter Display", "Inter", "Segoe UI Black", "Arial Black", sans-serif`; c.font = font;
-    const parts = ch.ws.map((w) => w.w.toUpperCase()), sp = size * 0.3, widths = parts.map((p) => c.measureText(p).width);
+    const parts = ch.ws.map((w) => w.w.replace(/[^\w'’-]/g, '').toUpperCase()), sp = size * 0.3, widths = parts.map((p) => c.measureText(p).width);
     let total = widths.reduce((a, b) => a + b, 0) + sp * (parts.length - 1); const sc = Math.min(1, 980 / total);
     const pop = back(seg(t, ch.t0 - 0.05, ch.t0 + 0.12));
     c.translate(W / 2, y0); c.scale(sc * (0.85 + 0.15 * pop), sc * (0.85 + 0.15 * pop)); c.rotate(-0.02 + 0.01 * Math.sin(t * 2));

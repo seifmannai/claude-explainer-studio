@@ -1,5 +1,14 @@
 # Learnings (newest first)
 
+## 2026-11-17 - touchscreen: the user's own voice, cloned with Chatterbox
+- make job: {"tts":"chatterbox","ref":"in/voice_ref/my_voice_ref.wav","tempo":"1.12","steps":"voice"} then a SEPARATE job
+  {"voice":"in/touchscreen_voice.wav","steps":"wxwords"}. In make.ps1 wxwords is defined before voice, so one job with
+  "voice,wxwords" runs wxwords first and fails (no voice yet).
+- Speed on the GTX 1060: Chatterbox ~15 s per script line (33 lines ~ 8 min); WhisperX alignment 56 s.
+- sync_check flags lines that follow the previous one with almost no pause (no silence to find the onset): false alarms
+  when the WhisperX words look continuous. Check the word list before "fixing".
+- Film pages: tools/words_to_film.py turns the PC word list into words.json/words-data.js; all cues follow on their own.
+
 ## 2026-11-17 - touchscreen v2: meaningful acting (user: "Dave moves with no meaning, AI slop")
 - Root cause: stock expressions + Stick.vary (random gesture per key) + Stick.alive eye darts every 0.9 s = busy, meaningless.
   Fix: ACTING.md per video (think -> want -> poses), Dave.CALM idle, lookAt targets, Stick.reach for contact, props in hands.

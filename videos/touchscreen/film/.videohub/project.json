@@ -5,13 +5,13 @@
   "script": "render.js",
   "workers": 2,
   "env": {
-   "DUR": "76.082"
+   "DUR": "84.225"
   }
  },
  "live": {
   "page": "index.html",
   "audio": "audio/mix.wav",
-  "dur": 76.082,
+  "dur": 84.225,
   "fps": 30
  },
  "transcript": {
