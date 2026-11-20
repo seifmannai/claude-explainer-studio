@@ -18,7 +18,7 @@
     // costume (strings switch at the middle of a blend): hat '' | 'top' | 'bowler' | 'cap' | 'bonnet'; coat = frock coat colour;
     // beard 0..1 (chin curtain); bowtie 0/1; prop '' | 'axe' held in the right hand at propAng (radians)
     skin: '#f6efe2', pants: '#2c3140', hairCol: '#2a2630', hat: '', hatCol: '#1d1a1c', hatTip: 0, coat: '', beard: 0, bowtie: 0,
-    mitts: '', stubble: 1, tieOn: 1, prop: '', propAng: 0, pointL: 0, pointR: 0, holdL: null, holdR: null, holdAngL: 0, holdAngR: 0,
+    mitts: '', headphones: '', hpAccent: '', hpLed: 0, stubble: 1, tieOn: 1, prop: '', propAng: 0, pointL: 0, pointR: 0, holdL: null, holdR: null, holdAngL: 0, holdAngR: 0,
     goggles: 0, gogglesOn: 0, pencil: 0, toolbelt: 0, nose: 0, freckles: 0, plaster: 0, glasses: 0, moustache: 0, tuft: 0, capBack: 0, hairOff: [0, 0], hairRot: 0, turn: 0 };   // turn -1..1: face looks left/right (3/4 view; features slide, far ear hides)   // hairOff/hairRot: the hair block can leave the head (gags)
   // brow = [raise, angle] per eye (angle > 0 = inner end down = angry); hands/feet are offsets from the ground point, y up
   const EXPR = {
@@ -330,6 +330,18 @@
         c.fillStyle = 'rgba(255,255,255,.8)'; c.beginPath(); c.arc(sx * 36 * sc - 7, 7, 5, 0, 7); c.fill(); }
       c.restore(); };
     if (p.goggles && !p.gogglesOn) goggles(hh / 2 + 18, 0.85);
+    if (p.headphones) {   // over-ear headphones: band over the head/cap, two cups at the ears; hpLed 0..1 = noise cancelling on (cyan dot)
+      const col = p.headphones, ac = p.hpAccent || '#ffb547', tw = p.turn;
+      c.save(); c.lineWidth = 7;
+      c.beginPath(); c.moveTo(-hw / 2 - 2, 4); c.bezierCurveTo(-hw / 2 - 10, hh / 2 + 64, hw / 2 + 10, hh / 2 + 64, hw / 2 + 2, 4);
+      c.strokeStyle = INK; c.lineWidth = 26; c.stroke(); c.strokeStyle = col; c.lineWidth = 15; c.stroke(); c.strokeStyle = INK;
+      for (const sd of [-1, 1]) { const near = sd > 0 ? 1 - Math.max(0, -tw) * 0.6 : 1 - Math.max(0, tw) * 0.6, x = sd * (hw / 2 + 6 - Math.abs(tw) * 10) + tw * 26;
+        c.save(); c.translate(x, -8); c.scale(near, 1);
+        c.beginPath(); c.roundRect(-24, -50, 48, 100, 22); c.fillStyle = col; c.fill(); c.lineWidth = 7; c.stroke();
+        c.beginPath(); c.roundRect(-14, -38, 28, 76, 13); c.fillStyle = ac; c.fill(); c.lineWidth = 4; c.stroke();
+        if (p.hpLed && sd > 0) { c.fillStyle = `rgba(63,224,232,${0.4 + 0.6 * p.hpLed})`; c.beginPath(); c.arc(0, 26, 7, 0, 7); c.fill(); }
+        c.restore(); }
+      c.restore(); }
     c.save(); c.translate(p.turn * 30, 0);   // face features slide toward the turn (restored after the sweat drops)
     for (let i = 0; i < 2; i++) {
       const sx = i ? 1 : -1, ex = sx * 38 * (1 - 0.18 * Math.abs(p.turn)), ey = 8, lid = Math.max(p.lid[i], 0), ew = 27, eh = 21 * Math.min(Math.max(lid, 0.06), 1.2);

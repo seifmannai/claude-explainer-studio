@@ -83,7 +83,7 @@ export function part(parent, geo, mat, { pos = [0, 0, 0], rot = [0, 0, 0], secti
 
 // ---------- studio: renderer, lights, environment, post, composite ----------
 export async function createStudio({ hdri = '../../../assets/hdri/studio.hdr', bg = PAL.navy, fog = [26, 45], exposure = 0.95, bloom = [0.45, 0.5, 1.25], dof = { aperture: 0.00022, maxblur: 0.006 }, envIntensity = 1.1, envRotY = 2.2, fov = 30, grid = true } = {}) {
-  const PR = window.devicePixelRatio || 1;
+  const PR = window.FILM_PR || window.devicePixelRatio || 1;   // FILM_PR: live previews force 1 (speed)
   const out = document.getElementById('c'); out.width = Math.round(W * PR); out.height = Math.round(H * PR);
   const ctx = out.getContext('2d');
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });

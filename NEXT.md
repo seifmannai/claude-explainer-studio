@@ -1,5 +1,12 @@
 # Where we left off (read this first in a new session)
 
+## 2026-11-20: video 5 "noise-cancelling" (videos/noise-cancelling) - first cut in VideoHub (guide Kokoro voice)
+- Jobs t1120a (Chatterbox clone of the user's voice) + t1120b (WhisperX words) wait in jobs\: the runner was off.
+  When out\anc_voice_v1 + out\anc_words_v1 exist: tools/words_to_film.py (in videos/touchscreen/tools) -> words.json,
+  re-run tools/mix.py, copy film/ to Documents\VideoHub\films\noise-cancelling.
+- Wait for the user's VideoHub notes.
+
+
 ## 2026-11-16 23:50: video 4 "Dave builds a touchscreen" (videos/touchscreen) - IN VIDEOHUB LIVE PREVIEW
 - Script approved by the user in chat (videos/touchscreen/script.txt, PLAN.md). Character: Dave (cap, orange shirt).
 - Film code: videos/touchscreen/film (copied to Documents\VideoHub\films\touchscreen on the PC). Guide Kokoro voice.

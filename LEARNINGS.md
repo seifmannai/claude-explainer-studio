@@ -1,5 +1,20 @@
 # Learnings (newest first)
 
+## 2026-11-20 - noise-cancelling (video 5): 2D Dave + 3D exploded product in one VideoHub film
+- Channel data (4 Shorts): each got ~1.2-1.4k views on day one then stopped = failed the Shorts seed test. Best retention:
+  microwave 55 % (62 s, one idea). Rule now: <45 s, hook in 2 s, payoff HEARD or SEEN, loop ending.
+- Hybrid film: classic scripts (Stick, Dave, kit/char2d/acting.js, metro.js) + ES module film.js (three.js r170 via importmap,
+  ./lib/three copied from node_modules and trimmed to the 19 files core.js + the page import). 2D scenes draw into an
+  offscreen 1080x1920 canvas and are blitted into #c (core.js scales #c by PR). window.FILM_PR forces PR=1 for live preview.
+- Portrait 3D framing: at fov 32 the view is only ~0.33 x distance wide. First pass had cameras at 2.5-3 units = everything
+  cropped. Product shots of a ~2-unit object need 6-9 units.
+- GTAOPass drew a dark rectangle behind the parts (with a CanvasTexture background) in SwiftShader: disabled for this film.
+- Cream plastic + environmentIntensity 1.35 + bloom threshold 1.15 = blown-out white. Use env 0.55, exposure 0.9, bloom
+  threshold 1.35, and multiply only glow materials above 2.
+- Camera keys: arrive at key i during its first ~0.9 s, then hold with drift (the first version started leaving each key at once).
+- Sound design carries the idea: metro bed -28 dB + low-pass after the button; a 110 Hz hum that stops exactly on "cancel out".
+- The PC runner was off: queued jobs simply wait in jobs\ (check the folder; no STATUS = runner not running).
+
 ## 2026-11-17 - touchscreen: the user's own voice, cloned with Chatterbox
 - make job: {"tts":"chatterbox","ref":"in/voice_ref/my_voice_ref.wav","tempo":"1.12","steps":"voice"} then a SEPARATE job
   {"voice":"in/touchscreen_voice.wav","steps":"wxwords"}. In make.ps1 wxwords is defined before voice, so one job with

@@ -1,0 +1,21 @@
+{
+ "title": "How noise-cancelling headphones erase sound",
+ "status": "in-progress",
+ "render": {
+  "script": "render.js",
+  "workers": 2,
+  "env": {
+   "DUR": "43.1"
+  }
+ },
+ "live": {
+  "page": "index.html",
+  "audio": "audio/mix.wav",
+  "dur": 43.1,
+  "fps": 30
+ },
+ "transcript": {
+  "file": "voice/words.json",
+  "offset": 0
+ }
+}
