@@ -76,9 +76,8 @@
     // camera: hook wide -> punch-ins on each noise -> close on Dave -> dive into the ear cup ; ending: out of the cup -> wide
     const keys = end
       ? [[C.back0, cup[0], cup[1], 7, 0], [C.back1 + 0.35, 700, 980, 1.08, 0.01], [C.notEven, 720, 960, 1.05, -0.01], [C.stop + 0.4, 620, 1000, 1.15, 0.02], [C.DUR, 600, 990, 1.1, 0]]
-      : [[0, 540, 1060, 1.05, -0.01], [C.more - 0.1, 540, 1060, 1.05, -0.01], [C.moreNoise + 0.1, 560, 1040, 1.35, 0.02], [C.rush - 0.05, 540, 1060, 1.0, 0],
-         [C.baby - 0.12, 260, 1060, 1.45, -0.03], [C.brakes - 0.12, 860, 900, 1.45, 0.03], [C.taps - 0.2, 560, 1080, 1.55, 0], [C.button, 600, 1060, 1.9, 0.01],
-         [C.gone + 0.3, 540, 1060, 1.15, -0.01], [C.dive0, 560, 1040, 1.3, 0], [C.dive1, cup[0], cup[1], 9, 0.08]];
+      : [[0, 540, 1060, 1.05, -0.01], [C.baby - 0.12, 320, 1060, 1.3, -0.02], [C.brakes - 0.12, 800, 940, 1.3, 0.02], [C.more - 0.1, 560, 1040, 1.45, 0.01],
+         [C.taps - 0.1, 580, 1070, 1.6, 0], [C.button, 600, 1060, 1.9, 0.01], [C.gone + 0.3, 540, 1060, 1.15, -0.01], [C.dive0, 560, 1040, 1.3, 0], [C.dive1, cup[0], cup[1], 9, 0.08]];
     Acting.shake = end ? 0.6 : 1 + (1 - q) * 0.8;
     const cam = Acting.camera(g, t, keys);
     const satv = 1 - 0.75 * q * (end ? 1 : 1);
@@ -116,10 +115,9 @@
          [C.stop - 0.05, 'shock', Object.assign({ hpLed: 1, handL: [-70, 500], lookAt: win }, HP), 10], [C.stop + 0.35, 'caught', Object.assign({ hpLed: 1, lookAt: win }, HP), 5],
          [C.stop + 0.9, 'sideEye', Object.assign({ hpLed: 1 }, HP), 14]]
       : [[0, 'defeat', Object.assign({ handL: [-70, 500], handR: [70, 260], lookAt: lookBaby, mouth: 'teeth' }, HP)],
-         [C.more, 'suspicious', Object.assign({ handL: [-70, 500], handR: [70, 260], lookAt: [cup[0] + 120, cup[1] - 60] }, HP), 9],
-         [C.rush, 'defeat', Object.assign({ handL: [-70, 500], handR: [70, 250], lean: 0.18, squash: 0.4, lookAt: [0, 1100], mouth: 'teeth' }, HP), 5],
          [C.baby - 0.05, 'shock', Object.assign({ handL: [-70, 500], handR: [60, 250], shoulders: 16, lookAt: lookBaby }, HP), 5],
          [C.brakes - 0.05, 'angry', Object.assign({ handL: [-70, 500], handR: [60, 250], lid: [0.15, 0.15], tilt: -0.12, lookAt: win }, HP), 5],
+         [C.more, 'suspicious', Object.assign({ handL: [-70, 500], handR: [70, 260], lookAt: [cup[0] + 120, cup[1] - 60] }, HP), 9],
          [C.taps - 0.25, 'deadpan', Object.assign({ handL: [-70, 500], handR: [70, 260], look: [0, 0], lid: [0.6, 0.6] }, HP), 9],
          [C.button - 0.2, 'poke', Object.assign({ handL: [-70, 500], at: [cup[0] + 18, cup[1] + 10], look: [0.4, 0], lean: -0.04 }, HP), 7],
          [C.button + 0.1, 'poke', Object.assign({ hpLed: 1, handL: [-70, 500], at: [cup[0] + 18, cup[1] + 10], look: [0.4, 0], lid: [0.9, 0.9] }, HP), 3],

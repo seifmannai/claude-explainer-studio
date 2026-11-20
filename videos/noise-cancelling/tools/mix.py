@@ -52,10 +52,10 @@ def brakes(d):
 def crunch():
     tt = T(0.12); return filt(noise(0.12), 'bandpass', [1500, 6000]) * np.exp(-tt * 30) * (rng.uniform(0.5, 1.0))
 duck = lambda k: 1 - 0.93 * float(np.clip((k - c['button']) / 0.6, 0, 1)) if k < c['dive1'] else 0.07
-put(0.0, baby(c['taps'] + 1.0) * 0.5 * np.concatenate([np.ones(int(c['button'] * SR)), np.linspace(1, 0.06, int(0.6 * SR)), 0.06 * np.ones(int(2.0 * SR))])[:int((c['taps'] + 1.0) * SR)])
-put(c['baby'] - 0.1, baby(1.6) * 0.6)
-put(c['brakes'] - 0.1, brakes(c['button'] - c['brakes'] + 0.2), 0.55)
-for k in np.arange(c['rush'], c['gone'], 0.23): put(k, crunch(), 0.5 * duck(k))
+put(0.0, baby(c['taps'] + 1.0) * 0.25 * np.concatenate([np.ones(int(c['button'] * SR)), np.linspace(1, 0.06, int(0.6 * SR)), 0.06 * np.ones(int(2.0 * SR))])[:int((c['taps'] + 1.0) * SR)])
+put(c['baby'] - 0.1, baby(1.2) * 0.35)
+put(c['brakes'] - 0.1, filt(brakes(min(0.9, c['button'] - c['brakes'] + 0.2)), 'lowpass', 2500), 0.25)   # short and soft
+for k in np.arange(c['rush'], c['gone'], 0.31): put(k, crunch(), 0.3 * duck(k))
 # ANC on: a click, then the "air pressure" whoomp into silence
 put(c['button'] - 0.01, filt(noise(0.02), 'highpass', 2000) * env(int(0.02 * SR), 0.0005, 0.015) * 1.2)
 put(c['button'], np.sin(2 * np.pi * np.cumsum(np.linspace(900, 1400, int(0.08 * SR))) / SR) * env(int(0.08 * SR), 0.002, 0.05) * 0.35)
@@ -100,8 +100,10 @@ for k, d in [('cancel', 0.9), ('tooFast', 0.6)]: music_gain *= 1 - np.exp(-((t -
 vv = np.zeros(N); vv[:min(N, len(v))] = v[:N]
 rms = lambda x: np.sqrt(np.mean(x[np.abs(x) > 1e-4] ** 2) + 1e-12)
 mus *= music_gain * rms(vv) / rms(mus) * 10 ** (-19 / 20)
-bed *= rms(vv) / rms(bed[:int(c['button'] * SR)]) * 10 ** (-6 / 20)       # the noise is LOUD before the button (6 dB under the voice)
+bed *= rms(vv) / rms(bed[:int(c['button'] * SR)]) * 10 ** (-14 / 20)      # noise clearly there but not harsh (user note #1: the start was too noisy)
+bed[:int(0.35 * SR)] *= np.linspace(0, 1, int(0.35 * SR))
 fx *= rms(vv) / max(rms(fx), 1e-9) * 10 ** (-8 / 20)
+fx[:int((c['button'] - 0.05) * SR)] *= 0.4   # the chaos before the tap stays well under the voice (user note #1)
 sfx = bed + fx
 mix = vv + sfx + mus; pk = max(1.0, np.abs(mix).max() / 0.95); mix /= pk
 d = os.path.dirname(out); os.makedirs(d, exist_ok=True)
