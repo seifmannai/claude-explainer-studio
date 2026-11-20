@@ -1,0 +1,19 @@
+# text | speed | pause after (s). Voice: the user's own voice (Chatterbox clone, tempo 1.12); guide = Kokoro blend40
+Your headphones kill noise...|1.02|0.12
+by making more noise.|1.0|0.4
+Rush hour. Screaming baby. Screeching brakes.|1.06|0.25
+Dave taps one button...|1.0|0.15
+and the whole train disappears.|0.98|0.45
+So what just happened in there?|1.04|0.3
+First, a tiny microphone on the outside listens to the train.|1.05|0.25
+Sound is just air, wiggling in waves.|1.02|0.25
+A chip copies that wave... and flips it upside down.|1.02|0.25
+The speaker plays the flipped wave into your ear.|1.03|0.25
+Every hill meets a valley... and they cancel out.|1.0|0.25
+Noise, plus anti-noise, equals silence.|0.98|0.4
+A second mic inside checks what's left, and fixes it, thousands of times a second.|1.07|0.3
+It's best at steady hums, like engines.|1.03|0.15
+High, sharp sounds change too fast to copy...|1.03|0.12
+so the soft cushions block those.|1.0|0.4
+Now Dave hears nothing.|1.0|0.3
+Not even his stop.|0.95|0.8
